@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+title: "MITA Open Blueprint: A BCM & BPT Data Repository"
+abstract: >-
+  A machine-readable dataset of the CMS Medicaid Information Technology
+  Architecture (MITA) Framework version 3.0 (May 2014 Update). Contains 152
+  documents (76 Business Process Templates and 76 Business Capability Models)
+  converted from the official CMS appendix PDFs to structured JSON, spanning
+  nine MITA business areas. Every record retains source file and page range
+  metadata so any claim can be traced back to the originating CMS document.
+message: "If you use this dataset, please cite it as below."
+type: dataset
+license: MIT
+version: 2.0.0
+date-released: "2026-01-12"
+url: "https://github.com/nickarrow/mita-open-blueprint"
+repository-code: "https://github.com/nickarrow/mita-open-blueprint"
+authors:
+  - family-names: Aretakis
+    given-names: Nick
+    alias: nickarrow
+keywords:
+  - MITA
+  - Medicaid
+  - CMS
+  - Medicaid Information Technology Architecture
+  - business process template
+  - business capability model
+  - maturity model
+  - state self-assessment
+  - MES certification
+  - open data
+references:
+  - type: report
+    title: >-
+      Medicaid Information Technology Architecture (MITA) Framework 3.0,
+      May 2014 Update
+    authors:
+      - name: "Centers for Medicare & Medicaid Services"
+        alias: CMS
+    year: 2014
+    notes: >-
+      Source material for this dataset. A work of the U.S. Government, in the
+      public domain under 17 U.S.C. section 105.
+    url: "https://www.medicaid.gov/medicaid/data-systems/medicaid-information-technology-architecture/medicaid-information-technology-architecture-framework"

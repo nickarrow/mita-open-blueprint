@@ -1,0 +1,53 @@
+MITA Open Blueprint
+Copyright (c) 2025-2026 Nick Aretakis
+https://github.com/nickarrow/mita-open-blueprint
+
+This repository is licensed under the MIT License. See LICENSE.
+
+For the avoidance of doubt, "the Software" in the MIT License includes the
+JSON dataset in `data/` and `data-archived-2012/` as well as the tooling,
+schema, and documentation.
+
+-------------------------------------------------------------------------------
+THE UNDERLYING MITA CONTENT IS PUBLIC DOMAIN
+-------------------------------------------------------------------------------
+
+The substantive content of the business process templates and business
+capability models originates in the CMS Medicaid Information Technology
+Architecture (MITA) Framework version 3.0 (May 2014 Update), published by the
+Centers for Medicare & Medicaid Services.
+
+That material is a work of the U.S. Government and is in the public domain
+under 17 U.S.C. section 105. No permission from the copyright holder named
+above is required to use it, and nothing in the MIT License should be read as
+claiming rights over it. You may also derive it yourself from the source PDFs
+in `source-pdfs/`.
+
+The MIT License applies to what was added here: the selection, coordination,
+and arrangement of that content into structured JSON, the schema design, the
+extraction metadata (`source_file`, `source_page_range`, `extracted_date`),
+and the tooling and documentation. To the extent that no copyright subsists in
+that compilation, none is asserted.
+
+-------------------------------------------------------------------------------
+ATTRIBUTION
+-------------------------------------------------------------------------------
+
+The MIT License asks only that the copyright and permission notice be
+retained. If you would like to credit the dataset more visibly, this is
+appreciated but not required:
+
+    MITA Open Blueprint by Nick Aretakis
+    https://github.com/nickarrow/mita-open-blueprint
+
+See `CITATION.cff` for structured citation metadata.
+
+-------------------------------------------------------------------------------
+NO ENDORSEMENT
+-------------------------------------------------------------------------------
+
+This is an unofficial conversion. It is not affiliated with, endorsed by, or
+approved by CMS. Refer to the official CMS MITA Framework documentation for
+authoritative information.
+
+The dataset is provided as-is, without warranty. See LICENSE.

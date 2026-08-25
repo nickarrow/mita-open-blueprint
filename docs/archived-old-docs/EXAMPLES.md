@@ -11,7 +11,7 @@ import json
 import urllib.request
 
 # Base URL for raw GitHub content
-BASE_URL = "https://raw.githubusercontent.com/naretakis/medicaid-mita-data/main/data"
+BASE_URL = "https://raw.githubusercontent.com/nickarrow/mita-open-blueprint/main/data"
 
 def load_from_github(file_path):
     """Load JSON file directly from GitHub."""
@@ -36,7 +36,7 @@ print(f"Steps: {len(bpt['process_details']['process_steps'])}")
 import json
 import requests
 
-BASE_URL = "https://raw.githubusercontent.com/naretakis/medicaid-mita-data/main/data"
+BASE_URL = "https://raw.githubusercontent.com/nickarrow/mita-open-blueprint/main/data"
 
 def load_from_github(file_path):
     """Load JSON file from GitHub using requests."""
@@ -52,7 +52,7 @@ bcm = load_from_github("bcm/care_management/CM_Establish_Case_BCM_v3.0.json")
 ### JavaScript/Node.js: Fetch from GitHub
 
 ```javascript
-const BASE_URL = "https://raw.githubusercontent.com/naretakis/medicaid-mita-data/main/data";
+const BASE_URL = "https://raw.githubusercontent.com/nickarrow/mita-open-blueprint/main/data";
 
 async function loadFromGitHub(filePath) {
     const url = `${BASE_URL}/${filePath}`;
@@ -86,7 +86,7 @@ console.log(`Steps: ${bpt.process_details.process_steps.length}`);
     <div id="output"></div>
     
     <script>
-        const BASE_URL = "https://raw.githubusercontent.com/naretakis/medicaid-mita-data/main/data";
+        const BASE_URL = "https://raw.githubusercontent.com/nickarrow/mita-open-blueprint/main/data";
         
         async function loadAndDisplay() {
             const bcm = await fetch(`${BASE_URL}/bcm/care_management/CM_Establish_Case_BCM_v3.0.json`)
@@ -260,7 +260,7 @@ print(f"Comes Before: {', '.join(deps['successors']) if deps['successors'] else 
 import json
 import urllib.request
 
-BASE_URL = "https://raw.githubusercontent.com/naretakis/medicaid-mita-data/main/data"
+BASE_URL = "https://raw.githubusercontent.com/nickarrow/mita-open-blueprint/main/data"
 
 # List of Care Management BCM files (you can maintain this list or fetch from GitHub API)
 CARE_MANAGEMENT_BCMS = [

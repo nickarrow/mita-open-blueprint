@@ -32,7 +32,7 @@ import json
 import urllib.request
 
 # Base URL for raw GitHub content
-BASE_URL = "https://raw.githubusercontent.com/naretakis/medicaid-mita-data/main/data"
+BASE_URL = "https://raw.githubusercontent.com/nickarrow/mita-open-blueprint/main/data"
 
 # Load a BCM file directly from GitHub
 bcm_url = f"{BASE_URL}/bcm/care_management/CM_Establish_Case_BCM_v3.0.json"
@@ -47,7 +47,7 @@ for question in bcm['maturity_model']['capability_questions']:
 
 ```javascript
 // JavaScript/Node.js example
-const BASE_URL = "https://raw.githubusercontent.com/naretakis/medicaid-mita-data/main/data";
+const BASE_URL = "https://raw.githubusercontent.com/nickarrow/mita-open-blueprint/main/data";
 
 // Load a BPT file directly from GitHub
 const bptUrl = `${BASE_URL}/bpt/care_management/CM_Establish_Case_BPT_v3.0.json`;
@@ -82,8 +82,8 @@ data/
 If you prefer to work with local files:
 
 ```bash
-git clone https://github.com/naretakis/medicaid-mita-data.git
-cd medicaid-mita-data
+git clone https://github.com/nickarrow/mita-open-blueprint.git
+cd mita-open-blueprint
 ```
 
 ```python
@@ -233,9 +233,17 @@ This dataset is derived from the **CMS Medicaid Information Technology Architect
 
 **Original Source**: [CMS MITA Framework](https://www.medicaid.gov/medicaid/data-systems/medicaid-information-technology-architecture/medicaid-information-technology-architecture-framework)
 
-**Disclaimer**: This is an unofficial conversion of CMS MITA documents to JSON format. While every effort has been made to ensure accuracy, users should refer to the [official CMS MITA documentation](https://www.medicaid.gov/medicaid/data-systems/medicaid-information-technology-architecture/medicaid-information-technology-architecture-framework) for authoritative information. This repository is not affiliated with or endorsed by CMS.
+**Disclaimer**: This is an unofficial conversion of CMS MITA documents to JSON format. While every effort has been made to ensure accuracy, users should refer to the [official CMS MITA documentation](https://www.medicaid.gov/medicaid/data-systems/medicaid-information-technology-architecture/medicaid-information-technology-architecture-framework) for authoritative information. This repository is not affiliated with, endorsed by, or approved by CMS.
 
-The original MITA documents are in the public domain as works of the U.S. Government. The JSON conversion and repository structure are provided under the GNU General Public License v3.0.
+The MITA content itself is a work of the U.S. Government and is in the public domain under 17 U.S.C. § 105. You do not need permission from this repository to use it.
+
+### How to Cite
+
+The MIT License asks only that you retain the copyright notice. If you'd like to credit the dataset more visibly, it's appreciated but not required:
+
+> MITA Open Blueprint by Nick Aretakis — https://github.com/nickarrow/mita-open-blueprint
+
+Structured citation metadata is in [CITATION.cff](CITATION.cff).
 
 ## Future Enhancements
 
@@ -249,10 +257,14 @@ Suggestions welcome via [GitHub Issues](../../issues)!
 
 ## License
 
-- **Original MITA Content**: Public domain (U.S. Government work)
-- **JSON Conversion & Repository**: GNU General Public License v3.0
+Everything in this repository — the dataset, the tooling, and the documentation — is licensed under the [MIT License](LICENSE).
 
-See [LICENSE](LICENSE) for full license text.
+**What this means in practice**: use it for anything, including commercial products. No copyleft, no share-alike, no restrictions on how you license your own work. Just keep the copyright notice.
+
+**Two clarifications** (see [NOTICE](NOTICE) for detail):
+
+- The underlying MITA content is a work of the U.S. Government, in the public domain under 17 U.S.C. § 105. The MIT License here covers what was added — the conversion to structured JSON, the schema, the extraction metadata, and the tooling. It asserts nothing over the CMS content itself, which you're free to use regardless.
+- For the avoidance of doubt, "the Software" in the MIT License includes the JSON dataset, not just the code.
 
 ## Changelog
 

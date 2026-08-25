@@ -184,9 +184,11 @@ Contributors will be recognized in:
 
 By contributing, you agree that:
 
-- Your contributions will be licensed under GNU GPL v3.0
+- Your contributions will be licensed under the [MIT License](https://opensource.org/licenses/MIT)
 - You have the right to submit the contribution
 - You understand the contribution becomes part of the public repository
+
+Note that the underlying MITA content is a U.S. Government work in the public domain. Corrections that bring the JSON closer to the source PDFs are transcription fixes, not creative contributions, and carry no separate copyright.
 
 ## Maintainer Responsibilities
 
