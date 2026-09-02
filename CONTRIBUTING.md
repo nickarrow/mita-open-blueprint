@@ -23,7 +23,7 @@ To fix data quality issues:
 1. Fork the repository
 2. Make your corrections to the JSON files in `data/`
 3. Verify your changes against the source PDFs in `source-pdfs/`
-4. Run validation: `cd tools && python comprehensive_validation.py`
+4. Run validation: `.venv/bin/python tools/verify_against_source.py`
 5. Submit a Pull Request with:
    - Clear description of what was corrected
    - Reference to the source PDF
@@ -46,8 +46,8 @@ When CMS releases new MITA versions:
 
 1. Open an issue to discuss the new version
 2. Follow the conversion methodology in `docs/CONVERSION_METHODOLOGY.md`
-3. Archive existing data (see `docs/2014_MIGRATION_PROJECT.md` for reference)
-4. Validate all conversions using `tools/validate_2014.py`
+3. Archive existing data (see `docs/archived-old-docs/2014_MIGRATION_PROJECT.md` for reference)
+4. Validate all conversions using `tools/verify_against_source.py`
 5. Submit a Pull Request with the new data
 
 ### 5. Enhance Tooling
@@ -117,7 +117,29 @@ Before submitting changes to JSON files:
 3. **Content Accuracy**: Verify against source PDF
 4. **Completeness**: Include all required fields
 5. **Consistency**: Follow naming conventions
-6. **Run Validation**: Execute `python tools/validate_2014.py` to verify all files pass
+6. **Run Validation**: Execute `.venv/bin/python tools/verify_against_source.py` and confirm `0 errors`
+
+A clean run reports five warnings. Those are expected - they flag questions whose
+source table cell wraps across a line or page break, so the text is correctly
+reassembled from more than one fragment. If your change adds a warning, check the
+fragments the tool prints and make sure the reassembly is right.
+
+### What not to "fix"
+
+The source PDFs are authoritative, including where CMS is inconsistent. These are
+faithful and should be left alone:
+
+- Where CMS names a process differently in its two appendices (CM06 and PL07),
+  `process_name` follows the framework's Business Architecture index so the BCM
+  and BPT halves pair, and `metadata.source_process_name` records what the
+  record's own appendix published. Do not "correct" either one to match the
+  other.
+- `predecessor_processes` and `successor_processes` contain free text as
+  published, including prose `NOTE:` blocks and the literal string `None`. Of 616
+  references, 130 do not resolve to a process in this dataset - most name Member
+  Management processes, which the framework defines but never published.
+- Two capability questions end in a full stop rather than a question mark.
+- Performance measures contain blanks (`within __ days`) as published.
 
 ### Source Verification
 
@@ -168,7 +190,9 @@ Pull requests are evaluated on:
 
 - [Data Structure Guide](docs/DATA_STRUCTURE.md)
 - [Conversion Methodology](docs/CONVERSION_METHODOLOGY.md)
-- [2014 Migration Project](docs/2014_MIGRATION_PROJECT.md)
+- [Tools](tools/README.md)
+- [Remediation Plan](docs/REMEDIATION_PLAN.md) - defects found against the source PDFs, and how each was repaired
+- [2014 Migration Project](docs/archived-old-docs/2014_MIGRATION_PROJECT.md)
 - [Usage Examples](docs/EXAMPLES.md)
 - [Official CMS MITA Documentation](https://www.medicaid.gov/medicaid/data-systems/medicaid-information-technology-architecture/medicaid-information-technology-architecture-framework)
 

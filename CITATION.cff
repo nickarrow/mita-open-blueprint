@@ -6,12 +6,14 @@ abstract: >-
   documents (76 Business Process Templates and 76 Business Capability Models)
   converted from the official CMS appendix PDFs to structured JSON, spanning
   nine MITA business areas. Every record retains source file and page range
-  metadata so any claim can be traced back to the originating CMS document.
+  metadata so any claim can be traced back to the originating CMS document. Every
+  transcribed field is machine-verified, word by word, against the pages its
+  record cites; see the repository for the precise scope and limits of that check.
 message: "If you use this dataset, please cite it as below."
 type: dataset
 license: MIT
-version: 2.0.0
-date-released: "2026-01-12"
+version: 2.1.0
+date-released: "2026-09-02"
 url: "https://github.com/nickarrow/mita-open-blueprint"
 repository-code: "https://github.com/nickarrow/mita-open-blueprint"
 authors:

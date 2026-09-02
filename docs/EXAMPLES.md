@@ -134,7 +134,11 @@ with open('data/bpt/care_management/CM_Establish_Case_BPT_v3.0.json') as f:
 
 print(f"Process: {bpt['process_name']}")
 print(f"Steps: {len(bpt['process_details']['process_steps'])}")
-print(f"Triggers: {len(bpt['process_details']['trigger_events'])}")
+
+# trigger_events is an object with two arrays, not a flat list
+triggers = bpt['process_details']['trigger_events']
+print(f"Environment-based triggers: {len(triggers['environment_based'])}")
+print(f"Interaction-based triggers: {len(triggers['interaction_based'])}")
 ```
 
 ## Working with BCM Data
@@ -219,8 +223,15 @@ import json
 with open('data/bpt/care_management/CM_Establish_Case_BPT_v3.0.json') as f:
     bpt = json.load(f)
 
-print("Trigger Events:")
-for trigger in bpt['process_details']['trigger_events']:
+# trigger_events is an object with two categorised arrays
+triggers = bpt['process_details']['trigger_events']
+
+print("Environment-based triggers (schedules, timers, system conditions):")
+for trigger in triggers['environment_based']:
+    print(f"  • {trigger}")
+
+print("\nInteraction-based triggers (input from people or other processes):")
+for trigger in triggers['interaction_based']:
     print(f"  • {trigger}")
 
 print("\nExpected Results:")
@@ -269,9 +280,9 @@ CARE_MANAGEMENT_BCMS = [
     "CM_Authorize_Treatment_Plan_BCM_v3.0.json",
     "CM_Establish_Case_BCM_v3.0.json",
     "CM_Manage_Case_Information_BCM_v3.0.json",
-    "CM_Manage_Population_and_Health_Outreach_BCM_v3.0.json",
+    "CM_Manage_Population_Health_Outreach_BCM_v3.0.json",
     "CM_Manage_Registry_BCM_v3.0.json",
-    "CM_Manage_Treatment_Plans_and_Outcomes_BCM_v3.0.json",
+    "CM_Manage_Treatment_Plan_and_Outcomes_BCM_v3.0.json",
     "CM_Perform_Screening_and_Assessment_BCM_v3.0.json"
 ]
 
@@ -319,34 +330,63 @@ for filename, data in care_bcms.items():
     print(f"  - {data['process_name']}")
 ```
 
-### Compare BCM and BPT for Same Process
+### Pair BCM with BPT — use `process_id`, not the filename
+
+**Join on `process_id`.** It is identical for a BCM/BPT pair and is insensitive
+to naming. `process_name` and the filename stem also pair correctly — all three
+give 76 pairs.
+
+Two processes are named inconsistently by CMS: Appendix D spells them
+`Manage Treatment Plan**s** and Outcomes` and `**Maintain** Reference
+Information`, while Appendix C and the framework's process index use
+`Manage Treatment Plan and Outcomes` and `Manage Reference Information`. The
+dataset follows the index so pairing works, and keeps the Appendix D wording in
+`metadata.source_process_name`. Before that was reconciled, a name-based join
+quietly returned 74 pairs instead of 76.
 
 ```python
 import json
 from pathlib import Path
 
-def load_matching_bcm_bpt(process_code, process_name_part):
-    # Find matching files
-    bcm_files = list(Path('data/bcm').rglob(f'{process_code}_*{process_name_part}*_BCM_*.json'))
-    bpt_files = list(Path('data/bpt').rglob(f'{process_code}_*{process_name_part}*_BPT_*.json'))
-    
-    if bcm_files and bpt_files:
-        with open(bcm_files[0]) as f:
-            bcm = json.load(f)
-        with open(bpt_files[0]) as f:
-            bpt = json.load(f)
-        
-        return {'bcm': bcm, 'bpt': bpt}
-    
-    return None
+def build_index(root='data'):
+    """Index every record by process_id, giving {id: {'bcm': ..., 'bpt': ...}}."""
+    index = {}
+    for path in Path(root).rglob('*.json'):
+        with open(path, encoding='utf-8') as fh:
+            record = json.load(fh)
+        entry = index.setdefault(record['process_id'], {})
+        entry[record['document_type'].lower()] = record
+    return index
 
-# Compare Establish Case process
-data = load_matching_bcm_bpt('CM', 'Establish_Case')
+index = build_index()
+print(f"Processes: {len(index)}")
+print(f"Complete pairs: {sum(1 for v in index.values() if 'bcm' in v and 'bpt' in v)}")
 
-if data:
-    print(f"Process: {data['bcm']['process_name']}")
-    print(f"BCM Questions: {len(data['bcm']['maturity_model']['capability_questions'])}")
-    print(f"BPT Steps: {len(data['bpt']['process_details']['process_steps'])}")
+pair = index['CM_ESTABLISH_CASE']
+print(f"\nProcess: {pair['bpt']['process_name']}")
+print(f"BCM questions: {len(pair['bcm']['maturity_model']['capability_questions'])}")
+print(f"BPT steps: {len(pair['bpt']['process_details']['process_steps'])}")
+
+# the pair CMS spells two ways
+divergent = index['CM_MANAGE_TREATMENT_PLAN_AND_OUTCOMES']
+print(f"\nBPT name: {divergent['bpt']['process_name']}")
+print(f"BCM name: {divergent['bcm']['process_name']}")
+```
+
+### Trace any value back to its source
+
+Every record carries the PDF and page range it came from, so any claim can be
+checked against the original CMS document.
+
+```python
+import json
+
+with open('data/bcm/care_management/CM_Establish_Case_BCM_v3.0.json', encoding='utf-8') as fh:
+    bcm = json.load(fh)
+
+meta = bcm['metadata']
+print(f"{bcm['process_id']} came from:")
+print(f"  {meta['source_file']}, pages {meta['source_page_range']}")
 ```
 
 ### Count Questions Across All BCMs
@@ -480,8 +520,10 @@ def generate_process_report(bpt_file):
     print(bpt['process_details']['description'][:200] + "...")
     
     print(f"\nTRIGGER EVENTS:")
-    for trigger in bpt['process_details']['trigger_events']:
-        print(f"  • {trigger}")
+    for kind, triggers in bpt['process_details']['trigger_events'].items():
+        print(f"  {kind}:")
+        for trigger in triggers:
+            print(f"    • {trigger}")
     
     print(f"\nPROCESS STEPS:")
     for step in bpt['process_details']['process_steps']:
@@ -557,7 +599,8 @@ class ProcessViewer:
         print(f"{self.bpt['process_details']['description']}\n")
         
         print(f"⚡ TRIGGER EVENTS:")
-        for trigger in self.bpt['process_details']['trigger_events']:
+        for trigger in (self.bpt['process_details']['trigger_events']['environment_based']
+                        + self.bpt['process_details']['trigger_events']['interaction_based']):
             print(f"  • {trigger}")
         
         print(f"\n📝 PROCESS STEPS:")

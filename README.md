@@ -122,6 +122,7 @@ BPT files contain detailed process information:
   "sub_category": "Case Management",
   "process_name": "Establish Case",
   "process_code": "CM",
+  "process_id": "CM_ESTABLISH_CASE",
   "process_details": {
     "description": "Full process description",
     "trigger_events": {
@@ -159,6 +160,7 @@ BCM files contain maturity assessment questions with 5 levels of capability:
   "sub_category": "Case Management",
   "process_name": "Establish Case",
   "process_code": "CM",
+  "process_id": "CM_ESTABLISH_CASE",
   "maturity_model": {
     "capability_questions": [
       {
@@ -182,42 +184,104 @@ BCM files contain maturity assessment questions with 5 levels of capability:
 }
 ```
 
+### Pairing a BCM with its BPT
+
+All three of these work, and all three give 76 pairs:
+
+- **`process_id`** — recommended. A stable identifier, identical across a pair.
+- **`process_name`** — identical across a pair.
+- **The filename stem** — `CM_Establish_Case_BCM_v3.0.json` and
+  `CM_Establish_Case_BPT_v3.0.json` share the code `CM_Establish_Case`.
+
+Two processes are named differently in CMS's own two appendices. Appendix C (the
+BPT source) and the framework's Business Architecture index, which assigns the
+official process codes, both use one spelling; Appendix D (the BCM source) uses
+another. The dataset follows the framework index so that pairing works, and
+records what each BCM document actually published in
+`metadata.source_process_name`:
+
+| Process | Used throughout | Appendix D publishes |
+|---|---|---|
+| CM06 | Manage Treatment Plan and Outcomes | Manage Treatment Plan**s** and Outcomes |
+| PL07 | **Manage** Reference Information | **Maintain** Reference Information |
+
 See [docs/DATA_STRUCTURE.md](docs/DATA_STRUCTURE.md) for complete schema documentation.
 
 ## Documentation
 
 - **[Data Structure Guide](docs/DATA_STRUCTURE.md)** - Complete field definitions and schemas
-- **[Conversion Methodology](docs/CONVERSION_METHODOLOGY.md)** - How PDFs were converted to JSON
+- **[Conversion Methodology](docs/CONVERSION_METHODOLOGY.md)** - How PDFs were converted, and the transcription decisions behind it
 - **[Usage Examples](docs/EXAMPLES.md)** - Common queries and usage patterns
-- **[2014 Migration Project](docs/2014_MIGRATION_PROJECT.md)** - Details of the 2012→2014 migration
+- **[Tools](tools/README.md)** - Validation and inspection utilities
+- **[Remediation Plan](docs/REMEDIATION_PLAN.md)** - Defects found against the source PDFs and how each was repaired
+- **[2014 Migration Project](docs/archived-old-docs/2014_MIGRATION_PROJECT.md)** - Historical record of the 2012→2014 migration
 - **[Source PDFs](source-pdfs/)** - Original CMS MITA PDF documents
 - **[Archived 2012 Data](data-archived-2012/)** - Previous MITA v3.0 (February 2012) data
 
 ## Validation
 
-All JSON files have been validated for:
-- Structural correctness
-- Content completeness
-- Accuracy against source PDFs
-
-To validate the data yourself:
+Every record is checked against the source PDF it came from, scoped to the pages
+that record cites.
 
 ```bash
-cd tools
-python validate_2014.py           # Quick validation for 2014 schema
-python comprehensive_validation.py # Full validation suite
+python3 -m venv .venv
+.venv/bin/pip install -r tools/requirements.txt
+
+.venv/bin/python tools/verify_against_source.py                    # full check
+.venv/bin/python tools/verify_against_source.py --structural-only  # no dependencies
+.venv/bin/python tools/verify_against_source.py --area care_management
 ```
 
-A visual QA tool is also available at `tools/viewer.html` for browsing the JSON data.
+What the checks establish, so you can calibrate how much to trust the data:
 
-See [tools/README.md](tools/README.md) for more information.
+**Established**
+
+- Every word of every transcribed field occurs on the pages that record cites.
+  This is what catches a word truncated at a page break — the defect class this
+  dataset actually suffered from.
+- Exact wording and word order for capability questions and notes.
+- Structure, naming, `process_id` uniqueness and pairing, page-range provenance,
+  and the known extraction artifacts (bullet debris, hyphen splits, page
+  furniture, cross-process bleed-over).
+
+**Not established**
+
+- **Where content sits.** Word-level attestation does not prove placement. Two
+  maturity levels swapped between ratings, a reordered `process_steps` array, or
+  `results` and `failures` exchanged would all pass. Maturity level and BPT prose
+  wrap across many lines of a six-column table that the PDF text layer does not
+  reproduce in reading order, which is why they are verified at the word level
+  and not as sequences.
+- **Missing content**, except where a record lacks one of the standard capability
+  quality categories, which is flagged. A deleted question or a truncation that
+  happens to end on a content word with punctuation is not detected.
+- **Text borrowed from an adjacent process in the same PDF** is only sometimes
+  caught. BCM level text is heavily boilerplate across the processes packed into
+  one appendix file, so word-level attestation has limited power there.
+
+The in-code docstrings in `tools/verify_against_source.py` state per-check scope.
+Prefer them over any summary if the two ever disagree.
+
+A clean run reports `PASSED - 0 errors` with 57 warnings. The warnings flag
+capability questions whose source table cell wraps across a page break, so the
+text is correctly reassembled from two fragments of the PDF; the tool prints the
+fragments so you can judge each one.
+
+For side-by-side BPT and BCM inspection in a browser:
+
+```bash
+python3 -m http.server 8000
+# open http://localhost:8000/tools/viewer.html
+```
+
+See [tools/README.md](tools/README.md) for what each check does.
 
 ## Statistics
 
 - **Total Files**: 152 (76 BCM + 76 BPT)
-- **BCM Questions**: 815 capability questions
-- **BCM Maturity Levels**: 4,075 level descriptions
-- **BPT Process Steps**: 822 documented steps
+- **BCM Questions**: 837 capability questions
+- **BCM Maturity Levels**: 4,185 level descriptions
+- **BPT Process Steps**: 826 documented steps
 - **Business Areas**: 9 complete domains
 
 ## Contributing
@@ -268,6 +332,75 @@ Everything in this repository — the dataset, the tooling, and the documentatio
 
 ## Changelog
 
+### Version 2.1.1 (September 2026)
+
+**Breaking for consumers that fetch these two files by URL.** Two BCM files were
+renamed so that every capability's BCM and BPT halves share one code:
+
+| Was | Now |
+|---|---|
+| `CM_Manage_Treatment_Plans_and_Outcomes_BCM_v3.0.json` | `CM_Manage_Treatment_Plan_and_Outcomes_BCM_v3.0.json` |
+| `PL_Maintain_Reference_Information_BCM_v3.0.json` | `PL_Manage_Reference_Information_BCM_v3.0.json` |
+
+Their `process_name` was changed to match. CMS names these two processes
+differently in its own two appendices; Appendix C and the Business Architecture
+index (which assigns the codes CM06 and PL07) agree on the names now used, so
+Appendix D is the outlier. The as-published Appendix D spelling is preserved in
+the new optional `metadata.source_process_name` field, so nothing is lost and
+each record still traces to its source.
+
+Why it matters: a consumer pairing the two halves by filename or by
+`process_name` previously built 74 capabilities from 152 files, silently dropping
+these two entirely. Pairing now yields 76 by filename, by `process_name`, or by
+`process_id`.
+
+### Version 2.1.0 (September 2026)
+
+Data-quality release. Every record was re-verified against the source CMS PDFs,
+and the defects found were repaired. Full detail, with per-defect evidence and
+page references, is in [docs/REMEDIATION_PLAN.md](docs/REMEDIATION_PLAN.md).
+
+**Recovered content** (previously missing from the dataset):
+
+- `CO_Perform_Contractor_Outreach_BCM` — an entire capability question and its
+  five maturity levels ("Effort to Perform; Efficiency", source page 25)
+- `PE_Prepare_REOMB_BCM` — the sampling-algorithm question, which had been
+  merged into the preceding question with their level text concatenated
+- `PM_Perform_Provider_Outreach_BCM` — the efficiency question, likewise merged,
+  with its level descriptions truncated mid-sentence
+- `EE_Determine_Provider_Eligibility_BPT` — moderate-risk and high-risk provider
+  screening sub-steps, including unannounced site visits, criminal background
+  checks and fingerprinting
+- `EE_Enroll_Provider_BPT` — a word dropped across a page break (`follow-up`)
+
+**Corrected content**:
+
+- 84 maturity-level descriptions across 25 files had the PDF running header's
+  process name spliced into them
+- 274 hyphenation artifacts rejoined (`state- specific` → `state-specific`),
+  leaving the 4 authored suspended hyphens intact
+- `shared_data` rebuilt in 4 BPT files where bullet markers had been welded onto
+  the wrong entries, destroying the parent/child structure
+- 2 capability questions had a duplicated tail
+- 1 question was filed under the wrong capability category
+- `EE_Enroll_Provider_BCM` had absorbed a question belonging to Disenroll Provider
+- 4 BPT files had an `Alternate Path:` block welded onto the preceding step
+- `FM_Manage_Estate_Recovery_BCM` had a CMS note concatenated into a question
+
+**Added**:
+
+- `process_id` on every record — a stable join key, so a BCM pairs with its BPT
+  even where CMS spells the process differently in the two appendices
+- `tools/verify_against_source.py` — validates structure *and* compares text
+  against the source PDFs
+- `tools/extract_bpt_field.py` — recovers list hierarchy from the source tables
+
+**Statistics** changed accordingly: 837 capability questions (was 835 in the
+data, 815 as reported), 4,185 level descriptions, 826 process steps.
+
+No files were renamed and no fields were removed, so existing consumers continue
+to work.
+
 ### Version 2.0.0 (January 2026)
 - **Major update**: Migrated from MITA v3.0 (February 2012) to MITA v3.0 Update (May 2014)
 - Increased from 144 to 152 files (72 → 76 BCM, 72 → 76 BPT)
@@ -277,7 +410,7 @@ Everything in this repository — the dataset, the tooling, and the documentatio
   - Disenroll Member
   - Inquire Member Eligibility
 - Enhanced trigger events with environment-based and interaction-based categorization
-- Added diagrams field to BPT schema (populated for Eligibility & Enrollment processes)
+- Added diagrams field to BPT schema (populated for one process, Determine Member Eligibility)
 - Archived 2012 data to `data-archived-2012/` for historical reference
 - New validation tools: `validate_2014.py`, `viewer.html`
 - Updated extraction tooling for 2014 PDF structure
@@ -295,5 +428,5 @@ Everything in this repository — the dataset, the tooling, and the documentatio
 
 ---
 
-**Last Updated**: January 2026  
+**Last Updated**: September 2026  
 **MITA Version**: 3.0 Update (May 2014)

@@ -1,3 +1,13 @@
+> **ARCHIVED — historical record of the February 2012 to May 2014 migration.**
+> File paths and script names in this document reflect the repository as it was
+> during that work and are no longer accurate. For current documentation start at
+> [../../README.md](../../README.md); for the schema see
+> [../DATA_STRUCTURE.md](../DATA_STRUCTURE.md).
+>
+> Note also that the process counts in this document were provisional. The audit
+> it references suspected the 2014 BCM set contained 73 processes; the published
+> appendices in fact contain all 76, and the dataset has 76.
+
 # MITA 2014 Migration Project
 
 ## Project Overview

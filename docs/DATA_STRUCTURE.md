@@ -18,13 +18,15 @@ Both BPT and BCM files share these top-level fields:
   "version": "3.0",
   "version_date": "May 2014",
   "business_area": "string",
+  "sub_category": "string",
   "process_name": "string",
   "process_code": "string",
-  "sub_category": "string",
+  "process_id": "string",
   "metadata": {
     "source_file": "string",
     "source_page_range": "string",
-    "extracted_date": "YYYY-MM-DD"
+    "extracted_date": "YYYY-MM-DD",
+    "manually_corrected": true
   }
 }
 ```
@@ -35,12 +37,76 @@ Both BPT and BCM files share these top-level fields:
 - **version**: MITA version (currently "3.0")
 - **version_date**: Publication date from source document (e.g., "May 2014")
 - **business_area**: High-level business domain
-- **process_name**: Specific process being described
-- **process_code**: Two-letter abbreviation (BR, CM, CO, EE, FM, OM, PE, PL, PM)
 - **sub_category**: Process subcategory from source document
+- **process_name**: Specific process being described, **exactly as its own source
+  document names it**. See the warning below before using this as a key.
+- **process_code**: Two-letter abbreviation (BR, CM, CO, EE, FM, OM, PE, PL, PM)
+- **process_id**: Canonical, stable identifier (e.g. `CM_ESTABLISH_CASE`).
+  **Identical for a BCM/BPT pair. This is the join key.** 76 distinct values, each
+  with exactly one BCM and one BPT.
+  **Read this field; do not derive it.** It usually equals the process code plus
+  the upper-snake-case process name, but not always: for the two processes CMS
+  spells differently across the appendices the id follows the BPT spelling, so
+  computing it from a BCM's `process_name` reproduces the exact bug the field
+  exists to prevent.
 - **metadata.source_file**: Relative path to source PDF
 - **metadata.source_page_range**: Page range in source PDF (e.g., "1-4")
 - **metadata.extracted_date**: Date of JSON extraction
+- **metadata.source_process_name** (string, optional): Present only where CMS
+  names a process differently in the appendix this record came from than in the
+  framework's Business Architecture index. Records the name exactly as this
+  record's own source document publishes it, while `process_name` follows the
+  index so that a BCM pairs with its BPT. Currently on 2 records.
+- **metadata.manually_corrected** (boolean, optional): Present on records whose
+  content was corrected by hand against the source because automated extraction
+  could not reproduce the table. Currently on
+  `FM_Manage_Estate_Recovery_BCM` and `FM_Prepare_Member_Premium_Invoice_BCM`.
+
+### Pairing a BCM with its BPT
+
+`process_id`, `process_name` and the filename stem all pair correctly and all
+give 76 pairs. `process_id` is recommended because it is insensitive to naming
+and punctuation.
+
+Two processes are named inconsistently by CMS itself. Appendix C (the BPT source)
+and the Business Architecture index — which assigns the official process codes —
+use one spelling; Appendix D (the BCM source) uses another:
+
+| Code | Used throughout this dataset | Appendix D publishes |
+|---|---|---|
+| CM06 | Manage Treatment Plan and Outcomes | Manage Treatment Plan**s** and Outcomes |
+| PL07 | **Manage** Reference Information | **Maintain** Reference Information |
+
+`process_name` and the filename follow the framework index so the two halves
+pair. The Appendix D spelling is retained in `metadata.source_process_name` on
+those two records, and the verification tooling checks provenance against that
+field, so fidelity to the source document is preserved.
+
+### Text conventions
+
+**Dashes are normalised; quotes are not.** The source PDFs mix `U+002D`,
+`U+2010` hyphen, `U+2013` en dash and `U+2014` em dash. All appear as `U+002D`
+in the JSON so consumers can match on one character. Curly apostrophes and
+quotation marks (`U+2018`–`U+201D`) are preserved as published. The asymmetry is
+intentional but worth knowing when comparing against a PDF.
+
+**Nesting inside a string** uses a newline plus indent. Depth is signalled by
+increasing indent, but the widths are not uniform across the corpus: one space
+(77 occurrences), two spaces (155) and four spaces (39) are all present. Parse on
+*relative* indent, not on a fixed width.
+
+```
+"3. Determine if CMS requires an APD.\n  a. Produce APD.\n  b. Modify APD as directed."
+"Other Agency Information:\n  - Department of Motor Vehicles (DMV)\n  - Veterans Administration (VA)"
+"The Establish Case business process ...:\n• Identify target members\n - Home and Community-Based Services (HCBS)"
+```
+
+Marker style also varies by field: `description` uses `•` and `✓`,
+`process_steps` uses `a.` / `i.`, and `shared_data` uses `-`. Treat the marker as
+decoration and the indent as the structure.
+
+**Category naming.** The `category` values use `Cost Effectiveness`, while the
+PDFs write `Cost-Effectiveness`. The value in the data is the one to match on.
 
 ## BPT Schema
 
@@ -57,6 +123,7 @@ Business Process Template files contain detailed process information.
   "sub_category": "Case Management",
   "process_name": "Establish Case",
   "process_code": "CM",
+  "process_id": "CM_ESTABLISH_CASE",
   "process_details": {
     "description": "Full process description text",
     "trigger_events": {
@@ -129,14 +196,21 @@ Business Process Template files contain detailed process information.
 
 **process_details.diagrams** (array)
 - Process flow diagrams extracted from source PDFs
-- Usually empty (`[]`) for most business areas
-- When present (primarily in Eligibility & Enrollment BPTs), contains objects with:
+- Empty (`[]`) in 75 of the 76 BPT files
+- Only `EE_Determine_Member_Eligibility_BPT_v3.0.json` has any, with 76 images in
+  `data/bpt/eligibility_and_enrollment_management/images/`
+- Each entry is an object with:
   - **filename**: Image filename (e.g., "EE_Determine_Member_Eligibility_diagram_2_2.png")
   - **description**: Brief description of the diagram
   - **page_reference**: Page number in source PDF
 
 **process_details.shared_data** (array of strings)
 - Data sources, stores, or systems used
+- One element per top-level item. Where the source nests sub-items under an
+  entry, they are carried inside that element as indented lines rather than as
+  separate elements — so an element may span several lines. Four files use this:
+  `EE_Determine_Provider_Eligibility`, `EE_Enroll_Provider`,
+  `EE_Inquire_Provider_Information` and `FM_Manage_TPL_Recovery`.
 - Examples:
   - "Member data store including demographics"
   - "Health Information Exchange (HIE) data store"
@@ -144,11 +218,34 @@ Business Process Template files contain detailed process information.
 
 **process_details.predecessor_processes** (array of strings)
 - Processes that typically occur before this one
-- Process names from other BPT documents
+- **Free text as published by CMS, not resolvable identifiers.** See the caveat below.
 
 **process_details.successor_processes** (array of strings)
 - Processes that typically follow this one
-- Process names from other BPT documents
+- **Free text as published by CMS, not resolvable identifiers.** See the caveat below.
+
+> **Caveat: these are not a process graph.**
+>
+> Of 616 predecessor/successor references, 130 do not resolve to any process in
+> this dataset. All of them are verbatim in the source PDFs and are preserved as
+> published. The unresolvable ones fall into four groups:
+>
+> - **Member Management processes** — `Send Outbound Transaction` (43),
+>   `Receive Inbound Transaction` (37), `Manage Applicant and Member
+>   Communication` (27), `Manage Member Information`, `Perform Population and
+>   Member Outreach`, `Manage Member Grievance and Appeal`. The framework defines
+>   Member Management but CMS never published BPT or BCM documents for it.
+> - **CMS name variants** — `Manage Contractor Communications` (the process is
+>   `Manage Contractor Communication`), `Manage Accounts Payment Disbursement`
+>   (`Manage Accounts Payable Disbursement`), `Manage Program Policy`
+>   (`Maintain Program Policy`), `Send Outbound Information`,
+>   `Maintain Member Information`.
+> - **Prose** — three entries are explanatory `NOTE:` paragraphs that CMS placed
+>   in the predecessor cell rather than a process name.
+> - **The literal string `None`** — in `PE_Prepare_REOMB_BPT`.
+>
+> If you are building a dependency graph, resolve these against `process_name`
+> case-insensitively, expect misses, and decide deliberately how to handle them.
 
 **process_details.constraints** (string)
 - Limitations, requirements, or rules
@@ -184,6 +281,7 @@ Business Capability Model files contain maturity assessment questions.
   "sub_category": "Case Management",
   "process_name": "Establish Case",
   "process_code": "CM",
+  "process_id": "CM_ESTABLISH_CASE",
   "maturity_model": {
     "capability_questions": [
       {
@@ -212,7 +310,7 @@ Business Capability Model files contain maturity assessment questions.
 
 **maturity_model.capability_questions** (array)
 - Array of capability assessment questions
-- Typically 10-11 questions per file
+- 10 to 15 per file (10 in 32 files, 11 in 20, 12 in 19, 13 in 3, 15 in 2)
 - Each question has 5 maturity levels
 
 **capability_questions[].category** (string)
@@ -228,7 +326,9 @@ Business Capability Model files contain maturity assessment questions.
 
 **capability_questions[].question** (string)
 - The capability question being assessed
-- Always ends with "?"
+- Usually ends with "?". Two do not: `CO_Perform_Contractor_Outreach` and
+  `PM_Perform_Provider_Outreach` both ask `How efficient is the process.` with a
+  full stop, as published.
 - Examples:
   - "Is the process primarily manual or automatic?"
   - "How timely is this end-to-end process?"
@@ -277,6 +377,8 @@ All JSON files use standard JSON data types:
 - **string**: Text values
 - **array**: Ordered lists
 - **object**: Key-value structures
+- **boolean**: `metadata.manually_corrected` only
+- **number**: `process_details.diagrams[].page_reference` only
 
 ## Validation Rules
 
