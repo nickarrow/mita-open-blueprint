@@ -1,12 +1,26 @@
 #!/usr/bin/env python3
 """
-Comprehensive Validation Script for MITA PDF to JSON Conversions
+Structural validation for the ARCHIVED February 2012 dataset.
 
-This script performs thorough validation of all converted JSON files against
-their source PDFs, checking structure, content, and accuracy.
+This checks `data-archived-2012/` against the 2012 schema, which has `date` and
+`page_count` top-level fields and a flat `trigger_events` array. It does NOT
+understand the current May 2014 schema and must not be used on `data/`.
+
+For the current dataset use:
+
+    .venv/bin/python tools/verify_against_source.py
+
+Historical note: this script previously walked a `json_output/` directory that
+does not exist in the repository. It validated nothing and reported
+"VALIDATION PASSED". It now resolves paths from the repository root and treats
+an empty file set as a failure.
 
 Usage:
-    source .venv/bin/activate && python3 comprehensive_validation.py
+    .venv/bin/python tools/archived-old-tools/comprehensive_validation.py
+
+Requires pypdf. Note that the 2012 records reference source PDFs by their
+original vault paths, which are not present in this repository, so the
+PDF-comparison checks will report the sources as missing.
 """
 
 import os
@@ -15,6 +29,9 @@ import pypdf
 import re
 from collections import defaultdict
 from datetime import datetime
+
+# The dataset this script's schema actually describes.
+DATA_DIR = "data-archived-2012"
 
 
 def validate_bcm_structure(json_data, json_path):
@@ -112,8 +129,19 @@ def validate_bpt_structure(json_data, json_path):
     return issues, warnings
 
 
+MISSING_SOURCE_COUNT = 0
+
+
 def validate_against_pdf(json_data, json_path):
-    """Validate JSON content against source PDF"""
+    """Validate JSON content against source PDF.
+
+    The archived 2012 records cite their source by the original vault path
+    ("BCM Vault v3.0/..."), which this repository does not ship - the 2012 PDFs
+    live under source-pdfs/archived-2012-versions/ with different names. A
+    missing source is therefore an expected, dataset-wide caveat, counted and
+    reported once, not a per-file failure.
+    """
+    global MISSING_SOURCE_COUNT
     issues = []
     
     # Get source PDF path
@@ -123,7 +151,7 @@ def validate_against_pdf(json_data, json_path):
         return issues
     
     if not os.path.exists(source_file):
-        issues.append(f"Source PDF not found: {source_file}")
+        MISSING_SOURCE_COUNT += 1
         return issues
     
     try:
@@ -147,14 +175,31 @@ def main():
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
     
-    # Get all JSON files
+    # Get all JSON files.
+    #
+    # This walked "json_output", a directory that has not existed in this
+    # repository since before the first public commit. It therefore found zero
+    # files and still printed "VALIDATION PASSED". The path is now resolved from
+    # the repository root, and an empty file set is a hard failure rather than a
+    # silent pass.
+    # this file lives at <repo>/tools/archived-old-tools/, so go up three levels
+    here = os.path.dirname(os.path.abspath(__file__))
+    repo_root = os.path.dirname(os.path.dirname(here))
+    data_dir = os.path.join(repo_root, DATA_DIR)
+
     all_json_files = []
-    for root, dirs, files in os.walk("json_output"):
+    for root, dirs, files in os.walk(data_dir):
         for file in files:
             if file.endswith(".json"):
                 all_json_files.append(os.path.join(root, file))
-    
+
+    print(f"Validating {DATA_DIR} against the February 2012 schema")
     print(f"Found {len(all_json_files)} JSON files to validate\n")
+
+    if not all_json_files:
+        print(f"No JSON files found under {data_dir}.")
+        print("Nothing was validated - refusing to report success.")
+        return 2
     
     # Statistics
     stats = {
@@ -241,6 +286,11 @@ def main():
     print(f"⚠ Warnings: {stats['warnings']}")
     print(f"✗ Failed: {stats['failed']}")
     print(f"⚠ Errors: {stats['errors']}")
+    if MISSING_SOURCE_COUNT:
+        print(f"\nNote: {MISSING_SOURCE_COUNT} records cite a source PDF that is not "
+              f"in this repository, so their\ncontent could not be compared against "
+              f"the source. The 2012 PDFs are under\nsource-pdfs/archived-2012-versions/ "
+              f"under different names. Structural checks still ran.")
     
     # Statistics by business area
     print("\n" + "=" * 80)
@@ -275,7 +325,11 @@ def main():
     
     if stats['failed'] == 0 and stats['errors'] == 0:
         print("✓ VALIDATION PASSED")
-        print("All files are structurally correct and match source PDFs")
+        if MISSING_SOURCE_COUNT:
+            print("All files are structurally correct against the 2012 schema.")
+            print("Source-PDF comparison was skipped - see the note above.")
+        else:
+            print("All files are structurally correct and match source PDFs")
         return 0
     else:
         print(f"✗ VALIDATION FAILED")

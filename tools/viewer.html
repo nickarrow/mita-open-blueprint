@@ -254,6 +254,46 @@
             await loadProcessList();
         }
 
+        // Filenames in the selected area, per document type, from the server's
+        // directory listing. Cached so pairing a BCM does not re-list.
+        let areaFiles = { bpt: [], bcm: [], folder: null };
+
+        async function listFiles(docType, areaFolder) {
+            const response = await fetch(`../data/${docType}/${areaFolder}/`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} listing ${docType}/${areaFolder}`);
+            }
+            const text = await response.text();
+            const suffix = docType === 'bpt' ? 'BPT' : 'BCM';
+            const pattern = new RegExp(`href="([^"]+_${suffix}_v3\\.0\\.json)"`, 'g');
+            return [...text.matchAll(pattern)].map(m => m[1].split('/').pop()).sort();
+        }
+
+        // Find the BCM that belongs to a BPT.
+        //
+        // Filenames agree across every pair, so the derived name is tried first
+        // and normally hits on the first request. The match is still confirmed on
+        // process_id rather than assumed from the filename, because CMS names two
+        // processes inconsistently across its appendices and that inconsistency
+        // previously reached the filenames.
+        async function findBcmFor(bpt, areaFolder) {
+            const derived = `${bpt.process_code}_`
+                + bpt.process_name.replace(/[^A-Za-z0-9]+/g, '_')
+                + '_BCM_v3.0.json';
+            // Try the derived name first, but only if it actually exists, so the
+            // common case costs one request and the divergent pairs cost no 404.
+            const ordered = areaFiles.bcm.includes(derived)
+                ? [derived, ...areaFiles.bcm.filter(f => f !== derived)]
+                : [...areaFiles.bcm];
+            for (const file of ordered) {
+                const response = await fetch(`../data/bcm/${areaFolder}/${file}`);
+                if (!response.ok) continue;
+                const candidate = await response.json();
+                if (candidate.process_id === bpt.process_id) return candidate;
+            }
+            throw new Error(`no BCM found with process_id ${bpt.process_id}`);
+        }
+
         // Load process list for selected area
         async function loadProcessList() {
             const areaFolder = document.getElementById('areaSelect').value;
@@ -261,17 +301,14 @@
             processSelect.innerHTML = '';
             
             try {
-                // Try to load BPT files to get process list
-                const response = await fetch(`../data/bpt/${areaFolder}/`);
-                const text = await response.text();
-                
-                // Parse directory listing (works with Python http.server)
-                const matches = text.matchAll(/href="([^"]+_BPT_v3\.0\.json)"/g);
-                const files = [...matches].map(m => m[1]);
-                
-                files.sort();
-                
-                for (const file of files) {
+                // Directory listings for both document types (Python http.server)
+                const [bptFiles, bcmFiles] = await Promise.all([
+                    listFiles('bpt', areaFolder),
+                    listFiles('bcm', areaFolder)
+                ]);
+                areaFiles = { bpt: bptFiles, bcm: bcmFiles, folder: areaFolder };
+
+                for (const file of bptFiles) {
                     // Extract process name from filename
                     const processName = file
                         .replace(/_BPT_v3\.0\.json$/, '')
@@ -279,29 +316,29 @@
                         .replace(/_/g, ' ');
                     
                     const opt = document.createElement('option');
-                    opt.value = file.replace('_BPT_v3.0.json', '');
+                    opt.value = file;
                     opt.textContent = processName;
                     processSelect.appendChild(opt);
                 }
                 
-                if (files.length > 0) {
+                if (bptFiles.length > 0) {
                     loadProcess();
                 }
             } catch (e) {
                 console.error('Error loading process list:', e);
-                processSelect.innerHTML = '<option>Error loading processes</option>';
+                processSelect.innerHTML =
+                    '<option>Error - serve the repo over HTTP (python3 -m http.server)</option>';
             }
         }
 
         // Load selected process (both BPT and BCM)
         async function loadProcess() {
             const areaFolder = document.getElementById('areaSelect').value;
-            const processBase = document.getElementById('processSelect').value;
+            const bptFileName = document.getElementById('processSelect').value;
             
-            if (!processBase) return;
+            if (!bptFileName) return;
             
-            const bptFile = `../data/bpt/${areaFolder}/${processBase}_BPT_v3.0.json`;
-            const bcmFile = `../data/bcm/${areaFolder}/${processBase}_BCM_v3.0.json`;
+            const bptFile = `../data/bpt/${areaFolder}/${bptFileName}`;
             
             // Load BPT
             document.getElementById('bptContent').innerHTML = '<span class="loading">Loading BPT...</span>';
@@ -315,12 +352,11 @@
                 document.getElementById('bptContent').innerHTML = `<span class="error">Error: ${e.message}</span>`;
             }
             
-            // Load BCM
+            // Load BCM, paired on process_id rather than on filename
             document.getElementById('bcmContent').innerHTML = '<span class="loading">Loading BCM...</span>';
             try {
-                const response = await fetch(bcmFile);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                currentBCM = await response.json();
+                if (!currentBPT) throw new Error('BPT failed to load, cannot pair BCM');
+                currentBCM = await findBcmFor(currentBPT, areaFolder);
                 renderBCM();
             } catch (e) {
                 currentBCM = null;
@@ -392,6 +428,7 @@
             html += renderField('sub_category', currentBPT.sub_category);
             html += renderField('process_name', currentBPT.process_name);
             html += renderField('process_code', currentBPT.process_code);
+            html += renderField('process_id', currentBPT.process_id);
             
             // Process details
             if (currentBPT.process_details) {
@@ -441,6 +478,7 @@
             html += renderField('sub_category', currentBCM.sub_category);
             html += renderField('process_name', currentBCM.process_name);
             html += renderField('process_code', currentBCM.process_code);
+            html += renderField('process_id', currentBCM.process_id);
             
             // Maturity model with capability questions - TABLE FORMAT
             if (currentBCM.maturity_model && currentBCM.maturity_model.capability_questions) {

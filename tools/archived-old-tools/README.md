@@ -1,3 +1,7 @@
+> **ARCHIVED.** This described the tooling as it stood during the 2014
+> migration. For the current tools see [../README.md](../README.md).
+> Paths and commands below may be stale.
+
 # MITA Tools
 
 This directory contains tools for extracting and validating MITA JSON data files.
@@ -234,6 +238,6 @@ Potential additions:
 
 ## Questions?
 
-- Check [../docs/DATA_STRUCTURE.md](../docs/DATA_STRUCTURE.md) for schema details
-- See [../docs/CONVERSION_METHODOLOGY.md](../docs/CONVERSION_METHODOLOGY.md) for conversion process
+- Check [../docs/DATA_STRUCTURE.md](../../docs/DATA_STRUCTURE.md) for schema details
+- See [../docs/CONVERSION_METHODOLOGY.md](../../docs/CONVERSION_METHODOLOGY.md) for conversion process
 - Open a GitHub Issue for validation questions

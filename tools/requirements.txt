@@ -1,0 +1,9 @@
+# Dependencies for the verification tooling in this directory.
+#
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r tools/requirements.txt
+#
+# PyMuPDF is used for source-PDF text extraction with line-level layout, which
+# is what makes it possible to tell an extraction artifact (a hyphen split
+# across a line break) from authored text (a suspended hyphen).
+PyMuPDF==1.26.7
