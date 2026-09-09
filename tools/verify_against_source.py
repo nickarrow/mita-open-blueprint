@@ -55,8 +55,98 @@ BPT_DETAIL_KEYS = {
     "shared_data", "predecessor_processes", "successor_processes", "constraints",
     "failures", "performance_measures",
 }
+# Present only on records whose source pages carry numbered reference tables.
+# Exactly one record in the corpus does: EE_Determine_Member_Eligibility_BPT,
+# whose steps cite "Table 1" through "Table 7". Optional, so its absence from
+# the other 75 BPT records is not a finding.
+BPT_OPTIONAL_DETAIL_KEYS = {"reference_tables"}
+REFERENCE_TABLE_KEYS = {"table_number", "title", "page_reference", "rows"}
+REFERENCE_ROW_KEYS = {"authority", "eligibility_group"}
+
 LEVEL_KEYS = {"level_1", "level_2", "level_3", "level_4", "level_5"}
 TRIGGER_KEYS = {"environment_based", "interaction_based"}
+
+# ---------------------------------------------------------------------------
+# Step-structure constants
+#
+# `process_steps` is a flat list mixing two kinds of entry: numbered steps
+# ("1. START: ...") and verbatim scenario headings from the source ("Capitation
+# Payment", "Alternate Path: Suspended Claim"). A heading is any entry that does
+# not open with "<digits>.".
+#
+# Numbering restarts at 1 for each scenario, which is faithful to the source, so
+# step numbers are NOT unique within a record. The checks below assert the shape
+# that makes those restarts legible rather than trying to force one sequence.
+# ---------------------------------------------------------------------------
+
+# Records whose source genuinely does not begin at step 1. CMS carried the
+# numbering over from the preceding process (Manage TPL Recovery ends at 9), so
+# Manage Estate Recovery is published as steps 10-21 with no 1-9 anywhere. The
+# transcription is correct; the defect is CMS's. See docs/SOURCE_DEFECTS.md.
+#
+# Keyed by `process_id` rather than filename: the filename carries a version, so
+# a version bump would silently drop the exemption, whereas `process_id` is the
+# record's identity and is already checked for uniqueness.
+STEP_START_EXCEPTIONS = {
+    "FM_MANAGE_ESTATE_RECOVERY": 10,
+}
+
+# Cascade suppressor, not the detector. A CFR citation split at its period leaves
+# "435." heading an entry, which reads as step 435; skipping it keeps `previous`
+# on the last real step so one bad entry yields one error instead of two. The
+# check that actually detects a split is the sequence test below - a low
+# fragment such as "4." passes this threshold and is caught by colliding with
+# the real step 4. Do not rely on this constant as the guard against splits.
+MAX_PLAUSIBLE_STEP_NUMBER = 60
+
+# Loose sanity bound on a scenario heading, not a discriminator. Heading lengths
+# are bimodal: 17 are short labels of 10-46 characters ("Manage FMAP",
+# "Alternate Path: Suspended Claim"), while 3 run 278-416 because CMS writes a
+# paragraph of guidance as the label (CM_Authorize_Referral, CM_Authorize_Service,
+# EE_Determine_Provider_Eligibility). No single threshold separates a long
+# legitimate heading from a swallowed step body, so this only catches an egregious
+# case. EXPECTED_SCENARIO_HEADINGS below is the real guard - it catches any entry
+# misclassified as a heading whatever its length.
+MAX_HEADING_LENGTH = 500
+
+# Scenario headings across the corpus. Classification is by exclusion - anything
+# not matching "<digits>." is treated as a heading - so this count is what catches
+# debris misclassified as a heading, and a heading silently lost by a
+# re-extraction, in both directions.
+EXPECTED_SCENARIO_HEADINGS = 20
+
+# Legend and connector labels from the swim-lane figures. These sit in the PDF
+# text layer at a smaller font than step body text, so they can be swept into a
+# step when extraction ignores font size. The figures themselves are recorded in
+# `diagrams`, so this text is debris wherever it appears in prose.
+#
+# A hardcoded list only catches the legend, not every box label, and adding
+# phrases one at a time is whack-a-mole. See "Not established - placement" in
+# tools/README.md for what this does and does not reach.
+FLOWCHART_FRAGMENTS = [
+    "Dual Paths", "Process No Yes", "Continue End", "No Yes No Yes",
+]
+
+# Labels from the source table's left-hand "Item" column. They delimit the record's
+# fields rather than belonging to any of them, so one arriving at the end of a step
+# means the extraction ran past the end of the step's own cell.
+#
+# Matched only after a sentence terminator, because these words occur in ordinary
+# step prose too - "5. Determine performance measures" and "7. Record the results"
+# are legitimate steps, and "Alternate Path: Third Party Liability Failures" is a
+# legitimate scenario heading. Requiring "." or ";" or ":" before the label
+# distinguishes an appended row label from a sentence that happens to end on the
+# same word: 0 false positives across the corpus.
+ITEM_COLUMN_LABELS = [
+    "Business Process Steps", "Performance Measures", "Trigger Events",
+    "Trigger Event", "Process Steps", "Predecessors", "Verifications",
+    "Description", "Constraints", "Shared Data", "Predecessor", "Successors",
+    "Successor", "Failures", "Results", "Result",
+]
+ITEM_LABEL_TAIL_RX = re.compile(
+    r"[.;:]\s+(" + "|".join(re.escape(x) for x in
+                            sorted(ITEM_COLUMN_LABELS, key=len, reverse=True))
+    + r")\s*$", re.IGNORECASE)
 
 CODE_TO_AREA = {
     "BR": "Business Relationship Management",
@@ -188,7 +278,7 @@ def traceable_text(doc):
     Covers every field whose text comes from the source document: BCM questions,
     notes, categories and all five level descriptions; BPT descriptions, steps,
     results, shared data, predecessors, successors, failures, performance
-    measures, constraints, trigger events and diagram descriptions.
+    measures, constraints, trigger events, and reference-table titles and cells.
 
     Excluded: metadata, `document_type` and other fixed enumerations, and the
     `diagrams` entries. Diagram filenames and descriptions ("Process diagram from
@@ -224,6 +314,25 @@ def traceable_text(doc):
             for i, item in enumerate((details.get("trigger_events") or {}).get(kind) or []):
                 if isinstance(item, str) and item:
                     yield f"trigger_events.{kind}[{i}]", item
+        # Reference-table titles and cells are transcribed from the source, so they
+        # belong under the same attestation as every other transcribed field.
+        # Without this, a rotated citation or a fabricated CFR section would ship
+        # silently - the structural checks only see shape, not content.
+        #
+        # Note that token attestation alone cannot catch a *swapped* pairing, since
+        # both strings still occur in the source. check_reference_table_pairing()
+        # covers that case.
+        for i, tb in enumerate((details.get("reference_tables") or [])):
+            if not isinstance(tb, dict):
+                continue
+            if tb.get("title"):
+                yield f"reference_tables[{i}].title", tb["title"]
+            for j, row in enumerate(tb.get("rows") or []):
+                if not isinstance(row, dict):
+                    continue
+                for key in ("authority", "eligibility_group"):
+                    if row.get(key):
+                        yield f"reference_tables[{i}].rows[{j}].{key}", row[key]
 
 
 def slugify_process(code: str, name: str) -> str:
@@ -531,6 +640,13 @@ def check_bcm_body(base, doc, rep: Report):
             rep.error(base, f"{tag}: note present but empty")
 
 
+def present_citations(details):
+    """Table numbers the process steps cite by number, e.g. "See ... Table 4"."""
+    return {int(n) for s in (details.get("process_steps") or [])
+            if isinstance(s, str)
+            for n in re.findall(r"\bTable (\d+)\b", s)}
+
+
 def check_bpt_body(base, doc, rep: Report, rel):
     details = doc.get("process_details")
     if not isinstance(details, dict):
@@ -538,7 +654,7 @@ def check_bpt_body(base, doc, rep: Report, rel):
         return
     for missing in sorted(BPT_DETAIL_KEYS - set(details)):
         rep.error(base, f"process_details missing {missing!r}")
-    for extra in sorted(set(details) - BPT_DETAIL_KEYS):
+    for extra in sorted(set(details) - BPT_DETAIL_KEYS - BPT_OPTIONAL_DETAIL_KEYS):
         rep.warn(base, f"process_details has unexpected field {extra!r}")
 
     if not (details.get("description") or "").strip():
@@ -574,6 +690,72 @@ def check_bpt_body(base, doc, rep: Report, rel):
         if not any(triggers.get(k) for k in TRIGGER_KEYS):
             rep.error(base, "no trigger events of either kind")
 
+    # reference_tables - optional, present only where the source carries them
+    if "reference_tables" in details:
+        tables = details["reference_tables"]
+        if not isinstance(tables, list) or not tables:
+            rep.error(base, "reference_tables present but not a non-empty list")
+        else:
+            page_range = (doc.get("metadata") or {}).get("source_page_range") or ""
+            bounds = re.match(r"^(\d+)-(\d+)$", page_range.strip())
+            seen = []
+            for i, tb in enumerate(tables):
+                tag = f"reference_tables[{i}]"
+                if not isinstance(tb, dict):
+                    rep.error(base, f"{tag} is not an object")
+                    continue
+                for missing in sorted(REFERENCE_TABLE_KEYS - set(tb)):
+                    rep.error(base, f"{tag} missing {missing!r}")
+                for extra in sorted(set(tb) - REFERENCE_TABLE_KEYS):
+                    rep.warn(base, f"{tag} unexpected field {extra!r}")
+                num = tb.get("table_number")
+                if not isinstance(num, int):
+                    rep.error(base, f"{tag}.table_number is not an integer")
+                else:
+                    seen.append(num)
+                if not str(tb.get("title") or "").strip():
+                    rep.error(base, f"{tag}.title is empty")
+                page = tb.get("page_reference")
+                if not isinstance(page, int):
+                    rep.error(base, f"{tag}.page_reference is not an integer")
+                elif bounds and not (int(bounds.group(1)) <= page <= int(bounds.group(2))):
+                    rep.error(base, f"{tag}.page_reference {page} outside "
+                                    f"source_page_range {page_range}")
+                rows = tb.get("rows")
+                if not isinstance(rows, list) or not rows:
+                    rep.error(base, f"{tag}.rows is not a non-empty list")
+                    continue
+                for j, row in enumerate(rows):
+                    rtag = f"{tag}.rows[{j}]"
+                    if not isinstance(row, dict):
+                        rep.error(base, f"{rtag} is not an object")
+                        continue
+                    for missing in sorted(REFERENCE_ROW_KEYS - set(row)):
+                        rep.error(base, f"{rtag} missing {missing!r}")
+                    for extra in sorted(set(row) - REFERENCE_ROW_KEYS):
+                        rep.warn(base, f"{rtag} unexpected field {extra!r}")
+                    for key in sorted(REFERENCE_ROW_KEYS & set(row)):
+                        if not str(row.get(key) or "").strip():
+                            rep.error(base, f"{rtag}.{key} is empty")
+                    rep.stats["reference_table_rows"] += 1
+            rep.stats["reference_tables"] += len(tables)
+            if seen and seen != list(range(1, len(seen) + 1)):
+                rep.error(base, "reference_tables table_number values are not 1..N "
+                                "in document order", str(seen))
+            for n in sorted(set(seen) - present_citations(details)):
+                rep.warn(base, f"reference_tables has Table {n} but no step cites it")
+
+    # A table a step cites must resolve. This runs whether or not the record has a
+    # `reference_tables` field, because the state it guards against is precisely a
+    # record that cites a table and carries no tables - a dangling reference this
+    # dataset would own rather than CMS.
+    resolvable = {tb.get("table_number")
+                  for tb in (details.get("reference_tables") or [])
+                  if isinstance(tb, dict)}
+    for n in sorted(present_citations(details) - resolvable):
+        rep.error(base, f"steps cite Table {n} but no such table is present in "
+                        f"reference_tables")
+
     # diagrams
     diagrams = details.get("diagrams")
     if not isinstance(diagrams, list):
@@ -593,6 +775,155 @@ def check_bpt_body(base, doc, rep: Report, rel):
             img = os.path.join(REPO_ROOT, os.path.dirname(rel), "images", name)
             if not os.path.exists(img):
                 rep.error(base, f"diagrams[{i}] filename not on disk: {name}")
+
+
+def check_reference_table_pairing(records, index, rep: Report):
+    """Assert each table row pairs the authority CMS printed beside that group.
+
+    A row attaches a statutory citation to an eligibility group, so a pairing
+    error is the most consequential defect this field can carry - it would tell a
+    reader that a group is authorised by a regulation that does not authorise it.
+    Token attestation cannot catch it: swapping two groups leaves every token
+    present in the source, so the fidelity layer passes.
+
+    What does catch it is reading order. In the PDF the left cell of a row is
+    followed immediately by the right cell of the same row, so "<authority>
+    <eligibility_group>" is contiguous in the extracted text for a correct row and
+    is not for a swapped one. Verified against all 57 rows in the corpus.
+    """
+    for rel, doc in records:
+        details = doc.get("process_details") or {}
+        tables = details.get("reference_tables")
+        if not tables:
+            continue
+        base = os.path.basename(rel)
+        meta = doc.get("metadata") or {}
+        src = meta.get("source_file")
+        bounds = re.match(r"^(\d+)-(\d+)$", str(meta.get("source_page_range") or "").strip())
+        if not src or not bounds or not os.path.exists(os.path.join(REPO_ROOT, src)):
+            continue
+        pages = index.pages(src)
+        lo, hi = int(bounds.group(1)), int(bounds.group(2))
+        haystack = canon("".join(pages[lo - 1:min(hi, len(pages))]))
+        for i, tb in enumerate(tables):
+            if not isinstance(tb, dict):
+                continue
+            for j, row in enumerate(tb.get("rows") or []):
+                if not isinstance(row, dict):
+                    continue
+                authority = str(row.get("authority") or "")
+                group = str(row.get("eligibility_group") or "")
+                if not authority or not group:
+                    continue
+                if canon(f"{authority} {group}") not in haystack:
+                    rep.error(base,
+                              f"reference_tables[{i}].rows[{j}]: authority and "
+                              f"eligibility_group are not adjacent in the source - "
+                              f"pairing may be wrong",
+                              f"{authority} | {group}")
+
+
+def check_step_structure(records, rep: Report):
+    """Assert the shape of `process_steps`, which fidelity checks cannot see.
+
+    Every finding here was a real defect in this dataset that the fidelity layer
+    passed, because it only asks whether text appears somewhere in the cited page
+    range - and leaked table rows, figure labels and section headings all do. The
+    defect is that they are in the wrong field, which is a structural question.
+    """
+    step_rx = re.compile(r"^\s*(\d+)\s*\.")
+    # Case-insensitive: a step legitimately *cites* "Table 4" without a colon, and
+    # those citations must stay allowed, but a "Table 4:" header in any casing is
+    # the start of a table that has leaked out of `reference_tables`.
+    table_rx = re.compile(r"\bTable \d+\s*:", re.IGNORECASE)
+
+    for rel, doc in records:
+        base = os.path.basename(rel)
+        if doc.get("document_type") != "BPT":
+            continue
+        steps = (doc.get("process_details") or {}).get("process_steps")
+        if not isinstance(steps, list) or not steps:
+            continue
+
+        expect_first = STEP_START_EXCEPTIONS.get(doc.get("process_id"), 1)
+        previous = None
+        for i, entry in enumerate(steps):
+            if not isinstance(entry, str):
+                continue
+            tag = f"process_steps[{i}]"
+            flat = re.sub(r"\s+", " ", entry).strip()
+
+            # Content that belongs to another field, not to a step.
+            if table_rx.search(flat):
+                rep.error(base, f"{tag}: reference-table content inside a step",
+                          flat[:160])
+            label = ITEM_LABEL_TAIL_RX.search(flat)
+            if label:
+                rep.error(base,
+                          f"{tag}: ends with the source table's {label.group(1)!r} "
+                          f"row label - extraction ran past the end of the step cell",
+                          flat[:160])
+            for frag in FLOWCHART_FRAGMENTS:
+                if frag in flat:
+                    rep.error(base, f"{tag}: figure label text inside a step "
+                                    f"({frag!r})", flat[:160])
+                    break
+
+            m = step_rx.match(entry)
+            if not m:
+                # A scenario heading. Classification is by exclusion, so this is
+                # the permissive branch of a function whose job is to catch text
+                # in the wrong field - assert its shape rather than trusting it.
+                rep.stats["scenario_headings"] += 1
+                if len(flat) > MAX_HEADING_LENGTH:
+                    rep.error(base,
+                              f"{tag}: entry is not a numbered step and is too long "
+                              f"to be a scenario heading ({len(flat)} chars) - has a "
+                              f"heading swallowed step prose?", flat[:160])
+                # The heading may also still be glued to the tail of the step
+                # above it, which is how the extraction originally lost it: the
+                # label was absorbed rather than dropped. Adding the heading
+                # without removing the absorbed copy leaves the step body
+                # disagreeing with the source and the label present twice.
+                prior = steps[i - 1] if i else None
+                if isinstance(prior, str):
+                    # Compare with trailing punctuation and whitespace removed: an
+                    # absorbed copy is not always a byte-identical suffix, and an
+                    # exact endswith() lets "... Capitation Payment." through.
+                    def tail_key(s):
+                        return re.sub(r"[\s.;:,]+$", "", canon(s)).casefold()
+                    prior_key, head_key = tail_key(prior), tail_key(flat)
+                    if head_key and prior_key.endswith(head_key):
+                        rep.error(base,
+                                  f"{tag}: heading is also absorbed into the tail of "
+                                  f"the preceding step", flat[:120])
+                continue
+
+            number = int(m.group(1))
+            if number > MAX_PLAUSIBLE_STEP_NUMBER:
+                rep.error(base,
+                          f"{tag}: opens with {number}., which is not a step number "
+                          f"(citation split at its period?)", flat[:160])
+                continue
+
+            if previous is None:
+                if number != expect_first:
+                    rep.error(base, f"{tag}: first step is {number}, expected "
+                                    f"{expect_first}", flat[:120])
+            elif number == previous + 1:
+                pass                                    # normal progression
+            elif number == 1:
+                # A new scenario. The source labels each one; if the label is
+                # missing the restart is unexplained to any consumer.
+                prior = steps[i - 1] if i else None
+                if not (isinstance(prior, str) and not step_rx.match(prior)):
+                    rep.error(base,
+                              f"{tag}: step numbering restarts at 1 without a "
+                              f"preceding scenario heading", flat[:120])
+            else:
+                rep.error(base, f"{tag}: step {number} does not follow step "
+                                f"{previous}", flat[:120])
+            previous = number
 
 
 def check_control_characters(records, rep: Report):
@@ -1028,6 +1359,7 @@ def main():
             rep.error("<dataset>", f"expected {EXPECTED_TOTAL} files, found {len(records)}")
 
     check_structure(records, rep, args.area)
+    check_step_structure(records, rep)
     check_control_characters(records, rep)
     check_header_leakage(records, rep)
     check_cross_process_bleed(records, rep)
@@ -1037,6 +1369,11 @@ def main():
         for doc_type, count in (("BCM", rep.stats["files_BCM"]), ("BPT", rep.stats["files_BPT"])):
             if count != EXPECTED_PER_TYPE:
                 rep.error("<dataset>", f"expected {EXPECTED_PER_TYPE} {doc_type} files, found {count}")
+        if rep.stats["scenario_headings"] != EXPECTED_SCENARIO_HEADINGS:
+            rep.error("<dataset>",
+                      f"expected {EXPECTED_SCENARIO_HEADINGS} scenario headings, found "
+                      f"{rep.stats['scenario_headings']} - debris misclassified as a "
+                      f"heading, or a heading lost")
 
     if args.structural_only:
         print("Fidelity checks skipped (--structural-only)")
@@ -1049,7 +1386,9 @@ def main():
             print("Or re-run with --structural-only.")
             return 2
         print("Comparing against source PDFs...")
-        check_fidelity(records, SourceIndex(fitz), rep)
+        index = SourceIndex(fitz)
+        check_fidelity(records, index, rep)
+        check_reference_table_pairing(records, index, rep)
 
     # ---- report
     def dump(title, findings):
@@ -1084,8 +1423,14 @@ def main():
     print(f"  BPT files ................ {rep.stats['files_BPT']}")
     print(f"  BCM capability questions . {rep.stats['bcm_questions']}")
     print(f"  BCM level descriptions ... {rep.stats['bcm_levels']}")
-    print(f"  BPT process steps ........ {rep.stats['bpt_steps']}")
+
     print(f"  BPT diagram references ... {rep.stats['diagrams']}")
+    print(f"  BPT step entries ......... {rep.stats['bpt_steps']} "
+          f"({rep.stats['bpt_steps'] - rep.stats['scenario_headings']} numbered steps "
+          f"+ {rep.stats['scenario_headings']} scenario headings)")
+    if rep.stats["reference_tables"]:
+        print(f"  BPT reference tables ..... {rep.stats['reference_tables']} "
+              f"({rep.stats['reference_table_rows']} rows)")
     if rep.stats["process_id_differs_from_name"]:
         print(f"  process_id differing from process_name ... "
               f"{rep.stats['process_id_differs_from_name']} "

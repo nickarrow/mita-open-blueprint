@@ -49,6 +49,16 @@ and detects the extraction artifacts this dataset has actually suffered from:
 | dangling tail | a field ending on a function word with no terminal punctuation - text lost at a page break |
 | question and note sequence | wording or word order that does not appear on the record's own pages |
 | process_id uniqueness | a duplicate id, which would silently merge two processes for any consumer indexing by it |
+| implausible step number | an entry opening `435.` — a CFR citation split at its period and read as a step |
+| step sequence | a step number that neither continues the sequence nor restarts at 1 |
+| unlabelled scenario restart | numbering that restarts at 1 with no scenario heading to explain it |
+| absorbed scenario heading | a heading present as its own entry *and* still glued to the tail of the step above it |
+| scenario heading count | debris misclassified as a heading, or a heading lost by a re-extraction |
+| table text in a step | `Table N:` content, any casing, or figure-legend labels sitting in `process_steps` |
+| row label in a step tail | a step ending on the source table's own `Shared Data` or `Performance Measures` label, meaning extraction ran past the end of the step cell |
+| reference table shape | missing or empty cells, `table_number` not 1..N, `page_reference` outside the record's pages |
+| unresolvable table citation | a step citing `Table N` with no such table present — checked even when the record has no `reference_tables` at all |
+| reference table pairing | an `authority` attached to the wrong `eligibility_group`, which token attestation cannot see because both strings still occur in the source |
 
 ### Exit codes
 
@@ -97,6 +107,38 @@ five levels rotated, a reversed `process_steps` array, `results` exchanged with
 `description` exchanged with `constraints`, and reordered questions. Detecting
 these needs geometric table reconstruction; two attempts proved unreliable enough
 that shipping them would have given false confidence.
+
+The structural step checks narrow this for `process_steps` but do not close it.
+Established by injecting nine variants one at a time, of which eight are caught:
+
+- bare table rows added as their own entries — caught, by the scenario-heading count
+- table debris appended into a step body — caught when the splice introduces a token
+  that is not on the cited pages, which a citation split at its period does
+- a `Table N:` header in any casing — caught
+- an `Item`-column row label appended after a step's own sentence — caught
+- a citation split leaving a number below the step-number threshold — caught by the
+  sequence check colliding with the real step of that number
+- prose appended to a scenario heading, and a heading replaced by leaked debris —
+  both caught by attestation
+
+**Not caught: figure box labels taken from the record's own pages.** Only the legend
+phrases in `FLOWCHART_FRAGMENTS` are recognised, so text like `Step 12 - Deny
+Medicaid Yes No Set Emergency Service Flag` appended to a step passes everything —
+every token is genuinely on the cited pages and only the field is wrong. Closing
+this properly needs font-aware source indexing, since figure labels sit below 10pt
+while step body text is exactly 10pt; a hardcoded phrase list is whack-a-mole.
+Finding this class still needs someone reading the source.
+
+`reference_tables` is the one field where placement *is* checked, via
+`check_reference_table_pairing`. Reading order does the work: a row's left cell is
+followed immediately by its right cell in the PDF, so a swapped `authority` and
+`eligibility_group` breaks contiguity even though both strings remain present. Six
+cross-row pairings in the corpus stay contiguous and so evade it, but all six are
+between rows that share an identical `authority`, where a swap cannot attach a
+citation to the wrong group. No harmful mis-pairing evades the check.
+
+A reference-table title truncated to a prefix of the real one passes both
+attestation and pairing, since every token is present and no pairing is disturbed.
 
 **Not established — completeness.** Every check verifies that what is present is
 attested, not that everything that should be present is. `check_category_coverage`
