@@ -44,6 +44,285 @@
       "Alternate Scenario 1 - Auto Eligible",
       "1. Determine if applicant or member is automatically categorically eligible without a requirement for financial eligibility (e.g., SSI recipients, IV-E children, deemed newborns). Assess if the individual is a State resident. If so, approve Medicaid eligibility and go to step 14. If not, go to step 6. Note: See Mandatory Auto Eligible Groups Table 7."
     ],
+    "reference_tables": [
+      {
+        "table_number": 1,
+        "title": "Mandatory MAGI Groups",
+        "page_reference": 6,
+        "rows": [
+          {
+            "authority": "42 CFR 435.118",
+            "eligibility_group": "Less Than 19"
+          },
+          {
+            "authority": "42 CFR 435.110",
+            "eligibility_group": "Parent / Caretaker Relative"
+          },
+          {
+            "authority": "42 CFR 435.116",
+            "eligibility_group": "Pregnant"
+          },
+          {
+            "authority": "42 CFR 435.150",
+            "eligibility_group": "Former Foster Care Child"
+          },
+          {
+            "authority": "42 CFR 435.119",
+            "eligibility_group": "Adult Group"
+          }
+        ]
+      },
+      {
+        "table_number": 2,
+        "title": "Optional MAGI Groups",
+        "page_reference": 7,
+        "rows": [
+          {
+            "authority": "42 CFR 435.220",
+            "eligibility_group": "Optional Parent / Caretaker Relative"
+          },
+          {
+            "authority": "42 CFR 435.222",
+            "eligibility_group": "Optional Reasonable Classifications of Children <21"
+          },
+          {
+            "authority": "42 CFR 435.227",
+            "eligibility_group": "Optional State Adoption Assistance Children <21"
+          },
+          {
+            "authority": "42 CFR 435.229",
+            "eligibility_group": "Optional Targeted Low-Income Children <19"
+          },
+          {
+            "authority": "42 CFR 435.226",
+            "eligibility_group": "Optional Chafee Independent Foster Care Adolescents <21"
+          },
+          {
+            "authority": "42 CFR 435.218",
+            "eligibility_group": "Optional Individuals Above 133% FPL <65"
+          },
+          {
+            "authority": "Social Security Act Sec. 1902(a)(10)(F)",
+            "eligibility_group": "Optional COBRA Continuation Group"
+          },
+          {
+            "authority": "42 CFR 435.215",
+            "eligibility_group": "Optional Tuberculosis Group (TB)"
+          },
+          {
+            "authority": "42 CFR 435.214",
+            "eligibility_group": "Optional Family Planning Group"
+          }
+        ]
+      },
+      {
+        "table_number": 3,
+        "title": "Medicare Savings Program Groups",
+        "page_reference": 8,
+        "rows": [
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(E)(i),1905(p)",
+            "eligibility_group": "Qualified Medicare Beneficiary (QMB)"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(E)(iii), 1905(p)(3)(A)(ii)",
+            "eligibility_group": "Specified Low Income Medicare Beneficiary (SLMB)"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(E)(iv), 1905(p)(3)(A)(ii)",
+            "eligibility_group": "Qualifying Individuals (QI)"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(E)(ii), 1905(s), 1905(p)(3)(A)(i)",
+            "eligibility_group": "Qualified Disabled and Working Individuals (QDWI)"
+          }
+        ]
+      },
+      {
+        "table_number": 4,
+        "title": "Non MAGI Optional Groups",
+        "page_reference": 11,
+        "rows": [
+          {
+            "authority": "42 CFR 435.213",
+            "eligibility_group": "Optional Individuals with Breast / Cervical Cancer 21-64 (No Income Test)"
+          },
+          {
+            "authority": "42 CFR 435.222",
+            "eligibility_group": "Optional Reasonable Classifications of Children <21 (No Income Test)"
+          },
+          {
+            "authority": "42 CFR 435.227",
+            "eligibility_group": "Optional State Adoption Assistance Children <21 (No Income Test)"
+          },
+          {
+            "authority": "42 CFR 435.226",
+            "eligibility_group": "Optional Chafee Independent Foster Care Adolescents <21 (No Income Test)"
+          },
+          {
+            "authority": "See Table 5",
+            "eligibility_group": "Aged, Blind or Disabled"
+          },
+          {
+            "authority": "42 CFR 435.236",
+            "eligibility_group": "Special Income - Level Group"
+          },
+          {
+            "authority": "42 CFR 435.217",
+            "eligibility_group": "Individual eligible for Home and Community based services using institutional rules"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(ii)(XXII), 1915(i)",
+            "eligibility_group": "Individual eligible for Home and Community based services (150% FPL)"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(ii)(XXII), 1915(i)",
+            "eligibility_group": "Individual eligible for Home and Community based services Special Income Level"
+          }
+        ]
+      },
+      {
+        "table_number": 5,
+        "title": "ABD Groups",
+        "page_reference": 11,
+        "rows": [
+          {
+            "authority": "42 CFR 435.210",
+            "eligibility_group": "Individuals Eligible for but not Receiving Cash"
+          },
+          {
+            "authority": "42 CFR 435.211",
+            "eligibility_group": "Individuals Eligible for Cash except for Institutionalization"
+          },
+          {
+            "authority": "42 CFR 435.212",
+            "eligibility_group": "Individuals in HMOs Guaranteed Eligibility"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1934",
+            "eligibility_group": "Individuals participating in a PACE program under Institutional Rules"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(ii)(VII), 1905(o)",
+            "eligibility_group": "Individuals Receiving Hospice Care"
+          },
+          {
+            "authority": "42 CFR 435.232",
+            "eligibility_group": "Optional State Supplemental Recipients - 1634 States, and SSI Criteria States with 1616 Agreements"
+          },
+          {
+            "authority": "42 CFR 435.234",
+            "eligibility_group": "Optional State Supplemental Recipients - 209(b) States, and SSI Criteria States without 1616 Agreements"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(e)(3)",
+            "eligibility_group": "Qualified Disabled Children under 19 (TEFRA Kids)"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(ii)(X), 1902(m)(1)",
+            "eligibility_group": "Poverty Level Aged or Disabled"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(ii)(XIII)",
+            "eligibility_group": "Work Incentives Eligibility Group (BBA)"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(ii)(XV)",
+            "eligibility_group": "Ticket to Work Basic Group (TWWIIA)"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(ii)(XVI)",
+            "eligibility_group": "Ticket to Work Medical Improvements Group (TWWIIA MI)"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(ii)(XIX)",
+            "eligibility_group": "Family Opportunity Act for Children with Disabilities (FOA)"
+          }
+        ]
+      },
+      {
+        "table_number": 6,
+        "title": "Medically Needy Groups",
+        "page_reference": 12,
+        "rows": [
+          {
+            "authority": "42 CFR 435.301",
+            "eligibility_group": "Less than 18"
+          },
+          {
+            "authority": "42 CFR 435.308",
+            "eligibility_group": "18-20"
+          },
+          {
+            "authority": "42 CFR 435.301",
+            "eligibility_group": "Pregnant Women"
+          },
+          {
+            "authority": "42 CFR 435.310",
+            "eligibility_group": "Parent / Caretaker Relative"
+          },
+          {
+            "authority": "42 CFR 435.320, 435.330",
+            "eligibility_group": "Aged"
+          },
+          {
+            "authority": "42 CFR 435.322, 435.330, 435.340",
+            "eligibility_group": "Blind"
+          },
+          {
+            "authority": "42 CFR 435.324, 435.330, 435.340",
+            "eligibility_group": "Disabled"
+          }
+        ]
+      },
+      {
+        "table_number": 7,
+        "title": "Auto-Eligible Groups (Not inclusive of Closed Groups)",
+        "page_reference": 15,
+        "rows": [
+          {
+            "authority": "Social Security Act, Sec. 1902(e)(4), 42 CFR 435.117",
+            "eligibility_group": "Deemed Newborns"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(i)(II), 42 CFR 435.120",
+            "eligibility_group": "SSI in a 1634 State"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(i)(I), 42 CFR 435.145",
+            "eligibility_group": "Title IV-E Foster Care, Adoption and Guardianship"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(i)(II), 42 CFR 435.120",
+            "eligibility_group": "Individual Receiving SSI"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1902(a)(10)(A)(i)(II),1902(f), 42 CFR 435.121",
+            "eligibility_group": "Aged, Blind, and Disabled in 209(b) States"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1619(b), 1902(10)(A)(i)(II), 1905(q)",
+            "eligibility_group": "Working Disabled Individuals"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1634(c)",
+            "eligibility_group": "Disabled Adult Children"
+          },
+          {
+            "authority": "42 CFR 435.130",
+            "eligibility_group": "Individuals Receiving Mandatory State Supplements"
+          },
+          {
+            "authority": "42 CFR 435.135",
+            "eligibility_group": "Individuals who would be eligible for SSI/SSP but for OASDI COLA increases since April, 1977"
+          },
+          {
+            "authority": "Social Security Act, Sec. 1634(b), 42 CFR 435.137",
+            "eligibility_group": "Disabled widows and widowers ineligible for SSI due to increase in OASDI"
+          }
+        ]
+      }
+    ],
     "diagrams": [
       {
         "filename": "EE_Determine_Member_Eligibility_diagram_2_2.png",
