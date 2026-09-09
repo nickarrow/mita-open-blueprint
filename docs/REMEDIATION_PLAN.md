@@ -1,8 +1,14 @@
-# Remediation Plan — Extraction Defects and Documentation Drift
+# Remediation Plan — Round 1: Extraction Defects and Documentation Drift
 
 **Opened**: 2026-09-02
 **Scope**: MITA v3.0 (May 2014 Update) dataset in `data/`, plus repository documentation and tooling
 **Baseline commit**: `c804abb` (`chore(license): relicense from GPL-3.0 to MIT`)
+
+> **Every figure in this section is as of the end of round 1.** A second round
+> followed — see [Round 2](#round-2--september-2026) — which changed some of them.
+> For current dataset figures use the
+> [README statistics](../README.md#statistics) or run
+> `tools/verify_against_source.py`.
 
 This document exists so the work can be resumed if interrupted. Every defect below was
 confirmed by comparing the JSON against the source PDFs in `source-pdfs/may-2014-update/`.
@@ -591,13 +597,18 @@ protects `eligibility- for` from D9. Run D9 last among the text repairs.
 
 ## Final verification
 
-### Invariants (re-checked after every change)
+### Invariants (re-checked after every change in round 1)
+
+Both columns are **round 1** figures: "Before" is the state at the start of that
+round, "After" is the state at its end. Two rows moved again in round 2 and are
+annotated below; for current figures see
+[README statistics](../README.md#statistics) or run the validator.
 
 | Check | Before | After |
 |---|---|---|
 | Files, all valid JSON | 152 | 152 |
 | BCM / BPT top-level key shapes | 1 / 1 | 1 / 1 |
-| `process_details` key shapes | 1 (11 keys) | 1 (11 keys) |
+| `process_details` key shapes | 1 (11 keys) | 1 (11 keys) — round 2: 2 shapes, 11 keys ×75 plus 12 keys ×1 (the optional `reference_tables`) |
 | `trigger_events` key shapes | 1 | 1 |
 | `levels` key shapes | 1 | 1 |
 | Filename ↔ code ↔ type ↔ name mismatches | 0 | 0 |
@@ -615,7 +626,7 @@ protects `eligibility- for` from D9. Run D9 last among the text repairs.
 | Fields ending on a dangling function word | 10 | **0** |
 | BCM capability questions | 835 | 837 |
 | BCM level descriptions | 4,175 | 4,185 |
-| BPT process steps | 822 | 826 |
+| BPT process steps | 822 | 826 — round 2: 832 entries, being 812 numbered steps plus 20 scenario headings |
 
 `tools/verify_against_source.py` reports **0 errors, 57 warnings**. Every warning
 is a capability question whose source cell wraps across a page break, reassembled
