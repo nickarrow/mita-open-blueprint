@@ -12,7 +12,7 @@ abstract: >-
 message: "If you use this dataset, please cite it as below."
 type: dataset
 license: MIT
-version: 2.2.0
+version: 2.2.1
 date-released: "2026-09-08"
 url: "https://github.com/nickarrow/mita-open-blueprint"
 repository-code: "https://github.com/nickarrow/mita-open-blueprint"

@@ -1065,3 +1065,94 @@ an open defect.
 | CMS defects documented rather than corrected | done — [SOURCE_DEFECTS.md](SOURCE_DEFECTS.md) |
 | Full re-validation | done — 0 errors, 57 warnings (unchanged baseline) |
 | Regression | done — 152 files, 0 unpaired, 76 capabilities, archive validator exit 0, no format drift |
+
+---
+
+# Round 3 — September 2026
+
+Reported from the downstream self-assessment app: the Determine Member Eligibility
+page listed 76 diagrams and displayed none of them.
+
+## D24 — 76 diagram entries were fragments of one figure
+
+`EE_Determine_Member_Eligibility_BPT` claimed 76 diagrams, every one of them
+`"Process diagram from page 2"` with `page_reference: 2`. Opening the files settled
+what they were: the largest is a **blank grey rectangle**, another is a **black
+rectangle with the word "Eligible" mirrored upside down**. All 76 measured 200-660px
+but only 581-2,274 bytes, and every one had exactly **2 distinct colours**.
+
+They are individual vector shapes. Page 2 of the source composes its figure from 161
+raster fragments; the extraction pulled 76 of them out and called each a diagram. So
+the record advertised 76 diagrams and contained none.
+
+**What was actually being lost.** Nine real figures, none of them represented:
+
+| Page | Figure |
+|---|---|
+| 2 | High Level Mapping to Determine Member Eligibility |
+| 4 | Step 6 - Assess Non-Financial Factors |
+| 5 | Step 7 - Mandatory MAGI |
+| 6 | Step 8 - Optional MAGI |
+| 7 | Step 9 - Assess and Determine MSP |
+| 9 | Step 10 - Screen Potential Non-MAGI Eligibility |
+| 10 | Step 11 - Determine Eligibility on Basis Other than MAGI |
+| 13 | Step 12 &13 - Deny Medicaid & Assess for Other Insurance Affordability Program |
+| 14 | Step 14 - Assign Group(s) and Benefit Level |
+
+The page-2 figure is the best single overview of the process in the whole document:
+every step 1-14 with its transitions, the alternate-scenario path, and a legend.
+
+**Fix.** Replaced the 76 fragments with 9 clipped page renders, one per figure, via
+the new `tools/render_bpt_figures.py`. A figure exists only as a *region* of a page
+here — there is no single embedded image to extract — so the region is computed as the
+union of the page's embedded-image and small-font-label bounding boxes, then clamped
+vertically by the body text immediately above and below so a crop cannot swallow a
+step's prose. The clamp is not allowed to cut into the figure; an earlier version
+padded down from the nearest text and clipped the page-2 title's ascenders.
+
+Eight descriptions are the figure titles transcribed from the page's text layer. Page
+2's title is set inside the figure raster and appears nowhere in the text layer, so it
+is transcribed from the rendered image; the render script records this, and the
+process-name splice check exempts diagram descriptions for the same reason.
+
+Every render was inspected as an image before shipping. Re-running the script
+reproduces all nine committed files byte for byte.
+
+**Scope.** Contained to one record. All 76 BPT sources were checked: this is the only
+one whose cited pages contain a figure, so `diagrams: []` on the other 75 is correct
+rather than a gap.
+
+## X7 — the checks that let 76 blank images through
+
+The suite verified that a referenced image **exists on disk**, and all 76 did.
+`traceable_text()` excluded diagram filenames and descriptions from attestation on the
+grounds that they were tool-generated rather than transcribed — which was true of
+`"Process diagram from page 2"` and is no longer true now that descriptions are
+published titles. Nothing asked whether an image contained anything.
+
+Added:
+
+- **Blank-image detection** (`check_diagram_images`, needs PyMuPDF). Distinct colour
+  count is the discriminator: all 76 fragments had exactly 2, the nine real figures
+  have 528-1057, so the threshold of 16 sits two orders of magnitude clear of both.
+  Modal-colour fraction does *not* separate them — 0.51-0.98 for the debris against
+  0.70-0.87 for the figures, which overlap — and was rejected for that reason.
+- **Fragmentation detection**: more than 3 diagram entries citing one page, or a
+  description repeated within a record. Either shape is what recording a figure's
+  fragments looks like, and the pre-fix state trips both.
+- **`page_reference` within the record's own `source_page_range`.**
+- **Orphan images**: a file in `images/` that no record claims. Aggregated per
+  directory, not per record — `images/` is shared by every record in a business area,
+  so a per-record check reported the area's other seven records as owning nothing.
+
+Each was confirmed to fire by injection, including reconstructing the exact pre-fix
+state (76 entries, one page, one repeated description) and watching it fail.
+
+## Round 3 status
+
+| Item | Status |
+|---|---|
+| D24 nine real figures replace 76 fragments | done — every render visually verified, reproducible byte for byte |
+| X7 diagram checks | done — each proven to fire; pre-fix state now fails validation |
+| Documentation | done — DATA_STRUCTURE.md, tools/README.md, README statistics and changelog |
+| Full re-validation | done — 0 errors, 57 warnings (unchanged baseline) |

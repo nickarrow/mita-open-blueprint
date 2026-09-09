@@ -115,6 +115,23 @@ MAX_HEADING_LENGTH = 500
 # re-extraction, in both directions.
 EXPECTED_SCENARIO_HEADINGS = 20
 
+# A figure occupies one region of one page, so a page should contribute one diagram,
+# or a small number if it carries several. Well above that means the extraction
+# recorded the fragments a figure is composed of rather than the figure.
+MAX_DIAGRAMS_PER_PAGE = 3
+
+# Minimum distinct colours for an image to be a figure rather than extraction debris.
+#
+# The 76 images this record previously shipped were single vector shapes pulled out of
+# the page: a blank grey box, a black box with mirrored text. Every one of them had
+# exactly **2** distinct colours; the nine real figure renders have 528 to 1057. So
+# the threshold sits two orders of magnitude clear of both sides.
+#
+# Note that modal-colour fraction does *not* separate them - the debris ranged 0.51 to
+# 0.98 and the real figures 0.70 to 0.87, which overlap. Colour count is the measure
+# that works.
+MIN_DIAGRAM_COLOURS = 16
+
 # Legend and connector labels from the swim-lane figures. These sit in the PDF
 # text layer at a smaller font than step body text, so they can be swept into a
 # step when extraction ignores font size. The figures themselves are recorded in
@@ -761,6 +778,9 @@ def check_bpt_body(base, doc, rep: Report, rel):
     if not isinstance(diagrams, list):
         rep.error(base, "diagrams is not a list")
         return
+    page_range = (doc.get("metadata") or {}).get("source_page_range") or ""
+    bounds = re.match(r"^(\d+)-(\d+)$", page_range.strip())
+    referenced, descriptions, per_page = set(), [], Counter()
     for i, dg in enumerate(diagrams):
         if not isinstance(dg, dict):
             rep.error(base, f"diagrams[{i}] is not an object")
@@ -772,9 +792,88 @@ def check_bpt_body(base, doc, rep: Report, rel):
         # images live in an images/ directory beside the JSON file
         name = dg.get("filename")
         if name:
+            referenced.add(name)
             img = os.path.join(REPO_ROOT, os.path.dirname(rel), "images", name)
             if not os.path.exists(img):
                 rep.error(base, f"diagrams[{i}] filename not on disk: {name}")
+        page = dg.get("page_reference")
+        if not isinstance(page, int):
+            rep.error(base, f"diagrams[{i}].page_reference is not an integer")
+        else:
+            per_page[page] += 1
+            if bounds and not (int(bounds.group(1)) <= page <= int(bounds.group(2))):
+                rep.error(base, f"diagrams[{i}].page_reference {page} outside "
+                                f"source_page_range {page_range}")
+        text = str(dg.get("description") or "").strip()
+        if not text:
+            rep.error(base, f"diagrams[{i}].description is empty")
+        else:
+            descriptions.append(text)
+
+    # A figure is one region of one page. A page credited with many "diagrams" means
+    # the extraction pulled out the fragments a figure is composed of and called each
+    # one a diagram - which is exactly what this record shipped: 76 entries, all
+    # page 2, all describing the same figure.
+    for page, count in sorted(per_page.items()):
+        if count > MAX_DIAGRAMS_PER_PAGE:
+            rep.error(base, f"{count} diagram entries all cite page {page} - figure "
+                            f"fragments recorded as separate diagrams?")
+    duplicated = {text for text, n in Counter(descriptions).items() if n > 1}
+    for text in sorted(duplicated):
+        rep.error(base, f"diagram description is not unique within the record: "
+                        f"{text[:70]!r}")
+
+    # Orphan detection needs every record that shares the directory, so it cannot be
+    # done here - an images/ directory is per business area, not per record. See
+    # check_orphan_images().
+
+
+def check_diagram_images(records, fitz_module, rep: Report):
+    """Assert each diagram image actually contains a figure.
+
+    The structural checks can see that a file exists and that a page is not credited
+    with a suspicious number of diagrams. Neither can see that a file is blank, and
+    this record shipped 76 files that were: single vector shapes lifted out of the
+    page, including an empty grey box and a black box carrying the word "Eligible"
+    upside down. Every check in the suite passed them, because a blank PNG is a real
+    file at a real path.
+
+    Distinct colour count is the discriminator. See MIN_DIAGRAM_COLOURS.
+    """
+    for rel, doc in records:
+        diagrams = (doc.get("process_details") or {}).get("diagrams")
+        if not diagrams:
+            continue
+        base = os.path.basename(rel)
+        for i, dg in enumerate(diagrams):
+            if not isinstance(dg, dict):
+                continue
+            name = dg.get("filename")
+            if not name:
+                continue
+            path = os.path.join(REPO_ROOT, os.path.dirname(rel), "images", name)
+            if not os.path.exists(path):
+                continue        # absence is already an error from the structural pass
+            try:
+                pixmap = fitz_module.Pixmap(path)
+                if pixmap.alpha:
+                    pixmap = fitz_module.Pixmap(pixmap, 0)
+            except Exception as exc:                      # noqa: BLE001
+                rep.error(base, f"diagrams[{i}] image could not be decoded: {name}",
+                          str(exc))
+                continue
+            # Subsampled: a full scan of nine renders is wasted work, and a figure's
+            # colour variety shows up in any reasonable sample.
+            pixel_count = pixmap.width * pixmap.height
+            stride = max(1, pixel_count // 20000)
+            channels, samples = pixmap.n, pixmap.samples
+            colours = {samples[p * channels:(p + 1) * channels]
+                       for p in range(0, pixel_count, stride)}
+            if len(colours) < MIN_DIAGRAM_COLOURS:
+                rep.error(base,
+                          f"diagrams[{i}] image is effectively blank - "
+                          f"{len(colours)} distinct colour(s), expected at least "
+                          f"{MIN_DIAGRAM_COLOURS}: {name}")
 
 
 def check_reference_table_pairing(records, index, rep: Report):
@@ -821,6 +920,34 @@ def check_reference_table_pairing(records, index, rep: Report):
                               f"eligibility_group are not adjacent in the source - "
                               f"pairing may be wrong",
                               f"{authority} | {group}")
+
+
+def check_orphan_images(records, rep: Report):
+    """An image on disk that no record's `diagrams` entry claims.
+
+    Aggregated per directory rather than per record, because `images/` sits beside the
+    JSON files and is therefore shared by every record in a business area. Checking it
+    per record reports each of the area's other records as owning nothing, which is
+    seven false findings per area here rather than one true one.
+
+    A warning, not an error: an unreferenced file wastes space and misleads a reader
+    about what the dataset contains, but it corrupts nothing.
+    """
+    claimed = defaultdict(set)
+    directories = set()
+    for rel, doc in records:
+        image_dir = os.path.join(os.path.dirname(rel), "images")
+        if os.path.isdir(os.path.join(REPO_ROOT, image_dir)):
+            directories.add(image_dir)
+        for dg in (doc.get("process_details") or {}).get("diagrams") or []:
+            if isinstance(dg, dict) and dg.get("filename"):
+                claimed[image_dir].add(dg["filename"])
+    for image_dir in sorted(directories):
+        on_disk = {n for n in os.listdir(os.path.join(REPO_ROOT, image_dir))
+                   if not n.startswith(".")}
+        for orphan in sorted(on_disk - claimed[image_dir]):
+            rep.warn("<dataset>", f"{image_dir}/{orphan} is on disk but no diagram "
+                                  f"entry references it")
 
 
 def check_step_structure(records, rep: Report):
@@ -1211,6 +1338,14 @@ def check_fidelity(records, index: SourceIndex, rep: Report):
         for path, text in iter_strings(doc):
             if path.startswith(".metadata") or path.endswith(".filename"):
                 continue
+            # A diagram description is the figure's published title, and a figure
+            # about this process legitimately names it: "High Level Mapping to
+            # Determine Member Eligibility". The splice check below would reject that,
+            # and correctly by its own rule - CMS sets that particular title inside the
+            # figure raster, so it is not in the page's text layer for any window to
+            # match. The eight other titles are verbatim text-layer strings; this one
+            # is transcribed from the rendered figure, which the render script records.
+            is_diagram_description = re.search(r"\.diagrams\[\d+\]\.description$", path)
 
             # --- hyphen line-break artifacts
             #
@@ -1246,7 +1381,9 @@ def check_fidelity(records, index: SourceIndex, rep: Report):
             # and the raw PDF text stream has running headers sitting in that
             # gap - so a cross-paragraph window would never match even when the
             # transcription is correct.
-            for pname in {n for n in (process_name, published_name) if n and len(n) > 6}:
+            names = set() if is_diagram_description else {
+                n for n in (process_name, published_name) if n and len(n) > 6}
+            for pname in names:
                 name_rx = re.compile(rf"\b{re.escape(pname)}\b")
                 for segment in text.split("\n"):
                     seg = canon(segment)
@@ -1360,6 +1497,7 @@ def main():
 
     check_structure(records, rep, args.area)
     check_step_structure(records, rep)
+    check_orphan_images(records, rep)
     check_control_characters(records, rep)
     check_header_leakage(records, rep)
     check_cross_process_bleed(records, rep)
@@ -1389,6 +1527,7 @@ def main():
         index = SourceIndex(fitz)
         check_fidelity(records, index, rep)
         check_reference_table_pairing(records, index, rep)
+        check_diagram_images(records, fitz, rep)
 
     # ---- report
     def dump(title, findings):

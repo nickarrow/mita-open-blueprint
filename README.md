@@ -286,6 +286,8 @@ See [tools/README.md](tools/README.md) for what each check does.
   headings transcribed from the source, which share the `process_steps` array
 - **BPT Reference Tables**: 7 tables (57 rows), on the one record whose source
   carries them
+- **BPT Diagrams**: 9 process figures, on the one record whose source pages carry
+  any
 - **Business Areas**: 9 complete domains
 
 ## Contributing
@@ -335,6 +337,35 @@ Everything in this repository — the dataset, the tooling, and the documentatio
 - For the avoidance of doubt, "the Software" in the MIT License includes the JSON dataset, not just the code.
 
 ## Changelog
+
+### Version 2.2.1 (September 2026)
+
+**Nine real figures replace 76 blank fragments.**
+`EE_Determine_Member_Eligibility_BPT` claimed 76 diagrams, all described as
+`"Process diagram from page 2"`. They were not diagrams. The source builds its figure
+from 161 raster fragments, and the extraction had pulled 76 of them out individually —
+the largest is a blank grey rectangle, another is a black rectangle with the word
+"Eligible" upside down, and every one had exactly 2 distinct colours.
+
+Replaced with the **9 figures the source actually publishes**, on pages 2, 4, 5, 6, 7,
+9, 10, 13 and 14, each captured as a clipped render of its region of the page and named
+by its published title — `High Level Mapping to Determine Member Eligibility`,
+`Step 6 - Assess Non-Financial Factors`, and so on. The page-2 figure maps every step
+1-14 with its transitions, the alternate-scenario path and a legend; it is the clearest
+overview of the process in the document and the dataset previously did not contain it.
+
+No schema change: `diagrams` keeps `{filename, description, page_reference}`, so a
+consumer already reading that field needs no code change. Entry count for this record
+goes 76 to 9, `page_reference` is now distinct per entry rather than 2 for all of them,
+and `description` is the figure's title rather than 76 copies of one string. All 75
+other BPT records keep `diagrams: []`, which is correct — this is the only record in
+the corpus whose source pages carry a figure.
+
+New `tools/render_bpt_figures.py` produces the images and reproduces the committed
+files byte for byte. The validator gained checks that reject a blank image, many
+diagram entries citing one page, a repeated description, a `page_reference` outside the
+record's page range, and an unreferenced file in `images/` — the pre-fix state fails
+all of the first three.
 
 ### Version 2.2.0 (September 2026)
 

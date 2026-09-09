@@ -228,14 +228,21 @@ Business Process Template files contain detailed process information.
     (e.g. `Pregnant Women`)
 
 **process_details.diagrams** (array)
-- Process flow diagrams extracted from source PDFs
-- Empty (`[]`) in 75 of the 76 BPT files
-- Only `EE_Determine_Member_Eligibility_BPT_v3.0.json` has any, with 76 images in
-  `data/bpt/eligibility_and_enrollment_management/images/`
+- Process flow figures published in the source PDF
+- Empty (`[]`) in 75 of the 76 BPT files, and correctly so:
+  `EE_Determine_Member_Eligibility_BPT_v3.0.json` is the only record in the corpus
+  whose source pages carry a figure at all
+- That record has **9** figures, one per page, on pages 2, 4, 5, 6, 7, 9, 10, 13 and
+  14, in `data/bpt/eligibility_and_enrollment_management/images/`
 - Each entry is an object with:
-  - **filename**: Image filename (e.g., "EE_Determine_Member_Eligibility_diagram_2_2.png")
-  - **description**: Brief description of the diagram
-  - **page_reference**: Page number in source PDF
+  - **filename**: Image filename, e.g. `EE_Determine_Member_Eligibility_diagram_page02.png`
+  - **description**: The figure's title as published, e.g. `Step 6 - Assess Non-Financial Factors`
+  - **page_reference**: Page number in the source PDF, distinct per entry
+- Each image is a clipped render of the figure's region of its page, produced by
+  `tools/render_bpt_figures.py`. The source composes each figure from dozens of small
+  raster fragments, so a figure exists only as a region of the page — there is no single
+  embedded image to extract. Re-running the script reproduces the committed files byte
+  for byte.
 
 **process_details.shared_data** (array of strings)
 - Data sources, stores, or systems used

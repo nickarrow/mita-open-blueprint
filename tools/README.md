@@ -59,6 +59,10 @@ and detects the extraction artifacts this dataset has actually suffered from:
 | reference table shape | missing or empty cells, `table_number` not 1..N, `page_reference` outside the record's pages |
 | unresolvable table citation | a step citing `Table N` with no such table present — checked even when the record has no `reference_tables` at all |
 | reference table pairing | an `authority` attached to the wrong `eligibility_group`, which token attestation cannot see because both strings still occur in the source |
+| blank diagram image | a referenced image that is effectively one flat colour — a figure fragment rather than a figure |
+| diagram fragmentation | many diagram entries citing one page, or repeating one description, which is what recording a figure's fragments looks like |
+| diagram page reference | a `page_reference` outside the record's own `source_page_range` |
+| orphan image | a file in `images/` that no record's `diagrams` entry claims |
 
 ### Exit codes
 
@@ -139,6 +143,13 @@ citation to the wrong group. No harmful mis-pairing evades the check.
 
 A reference-table title truncated to a prefix of the real one passes both
 attestation and pairing, since every token is present and no pairing is disturbed.
+
+**Weak — diagram content.** A referenced image is now checked for existence and for
+being more than one flat colour, which is what caught this dataset shipping 76 blank
+figure fragments. Nothing checks that an image depicts the figure its `description`
+names, or that a figure present in the source has been captured at all — the corpus
+happens to have exactly one record with figures, verified by hand against rendered
+pages, so a missing figure would currently only be noticed by a reader.
 
 **Not established — completeness.** Every check verifies that what is present is
 attested, not that everything that should be present is. `check_category_coverage`
