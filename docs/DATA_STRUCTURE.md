@@ -193,6 +193,39 @@ Business Process Template files contain detailed process information.
 - Typically 5-20 steps
 - Often numbered in the text (e.g., "1. START: Receive request")
 - May include sub-steps with lettered items (e.g., "a.", "b.")
+- **Step numbers are not unique within a file.** Where the source defines more
+  than one scenario for a process, each scenario restarts its numbering at 1.
+  This is faithful to the published document; do not treat the step number as a
+  key.
+- **`go to step N` can cross a scenario boundary.** In
+  `EE_Determine_Member_Eligibility`, the alternate scenario's only step says
+  "approve Medicaid eligibility and go to step 14. If not, go to step 6" — and
+  neither step exists in that scenario. Both resolve against the main scenario.
+  CMS wrote it that way, so resolving such a reference means searching the whole
+  record rather than the current scenario.
+- **Scenario headings share the array.** An element that does not begin with
+  `<digits>.` is a scenario heading transcribed verbatim from the source, and it
+  labels the steps that follow it — for example `Capitation Payment`,
+  `Alternate Path: Suspended Claim`, `Manage FMAP`. Test for
+  `^\d+\.` to tell the two apart. 20 headings appear across 12 BPT files;
+  `FM_Manage_Fund` has four scenarios in one array.
+- One file starts at step 10 rather than 1, because the source does. See
+  [SOURCE_DEFECTS.md](SOURCE_DEFECTS.md).
+
+**process_details.reference_tables** (array, optional)
+- Numbered lookup tables published alongside the steps, which steps cite by
+  number ("Note: See Mandatory MAGI Groups Table 1").
+- Present on **one** record only, `EE_Determine_Member_Eligibility_BPT_v3.0.json`
+  (7 tables, 57 rows). It is the only record in the corpus whose source pages
+  carry numbered tables, so the key is absent everywhere else — treat it as
+  optional and ignore it if your consumer does not need it.
+- Each entry is an object with:
+  - **table_number**: Integer, 1..N in document order
+  - **title**: Table title as published (e.g., "Medically Needy Groups")
+  - **page_reference**: Page number in the source PDF
+  - **rows**: Array of objects, each with **authority** (the statutory or
+    regulatory citation, e.g. `42 CFR 435.301`) and **eligibility_group**
+    (e.g. `Pregnant Women`)
 
 **process_details.diagrams** (array)
 - Process flow diagrams extracted from source PDFs

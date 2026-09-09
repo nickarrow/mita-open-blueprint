@@ -883,3 +883,174 @@ called out as such in the README changelog.
 | X5 schema documentation | done |
 | Full re-validation | done — 0 errors, 57 warnings |
 | Sub-agent review | done — 4 reviews; findings recorded above and all addressed |
+---
+
+# Round 2 — September 2026
+
+Prompted by an external reviewer reporting that `FM_Manage_Estate_Recovery_BPT`
+publishes steps 10-21. They were right that the transcription is accurate and the
+defect is CMS's. Checking it surfaced a second, unrelated file that *was*
+misextracted.
+
+**The rule applied throughout this round**, and now the repository's stated
+policy: if the JSON disagrees with the PDF, the extraction is wrong and gets
+fixed. If the JSON agrees with the PDF and the PDF is wrong, the defect is
+mirrored and recorded in [SOURCE_DEFECTS.md](SOURCE_DEFECTS.md). No editorial
+corrections. One consequence worth noting: because every fix moves the data
+toward the source, no validator exception mechanism was needed — the alternative
+policy (correcting CMS's typos) would have required one, since the fidelity layer
+raises a hard error for any text it cannot find in the cited pages.
+
+## D19 — `EE_Determine_Member_Eligibility_BPT` step array
+
+Only 5 of 21 entries were clean. Found by reconstructing the step column from the
+PDF text layer using font metrics: step body text is 10.0pt ArialMT, section
+headings 10.0pt Arial-BoldMT, table content 9.0pt, and every figure label is
+below 10pt. That separation is what made the repair tractable; the earlier attempt
+at geometric column reconstruction (documented in round 1) had failed at 17.8%
+miss rate.
+
+| Defect | Detail |
+|---|---|
+| 6 truncated steps | 2, 4, 7, 8, 11, 14 — text lost at page boundaries. Steps 7 and 8 were missing sub-items outright; step 11 was missing all of sub-item `h`, which step 11e directs the reader to. |
+| A NOTE dropped entirely | The `Verifications` NOTE on p.3, 397 characters, styled identically to the five NOTEs that were retained. It is the only place the source says steps 2-4 may be performed in any order, and the only place it cites 42 CFR 435.945(j). It sits between step 1c and step 2 and states its own scope, so it is carried as a trailing NOTE line on step 1 — the convention every other NOTE in the corpus uses; there are no standalone NOTE entries anywhere in the data. |
+| Space before a comma removed | Step 7e reads `go to 7f , if not` in the source. The extraction tidied it. Restored, since "reads better than the source" is a defect under this policy. |
+
+3,126 characters of published text restored in total.
+| 5 spurious entries | `42 CFR 435.` split at its period, so `435.` read as a step number and Table 6/7 rows became steps. |
+| Figure text in step 5 | The page-4 swim-lane diagram's labels, ~600 characters. The figure itself is already in `diagrams`, so nothing is lost by removing them. |
+| Table text in steps 9 and alt-1 | Table 3 and Table 7 rows. |
+| Section headings absorbed | Tails of steps 3, 10 and 13. |
+| Step 15 merged with a heading | `15. END Alternate Scenario 1 - Auto Eligible` split into the step and the heading. |
+
+Entries went 21 → 18. The three CMS typos inside the restored text — `eligibile`,
+`orHealth`, `Medicaid..` — were reproduced as published, and the validator now
+confirms they are still present.
+
+## D20 — dropped scenario headings (11 headings across 6 records)
+
+Where a process defines more than one scenario the source labels each one. The
+extraction had dropped the labels, so step numbering restarted at 1 with nothing
+to explain it. Restored verbatim:
+
+| Record | Headings restored |
+|---|---|
+| `CM_Manage_Registry` | `Alternate Path:` |
+| `FM_Manage_1099` | `Preparation/Maintenance` |
+| `FM_Manage_Fund` | `Manage Fund`, `Manage FMAP`, `Manage FFP`, `Draw and Report FFP` |
+| `OM_Prepare_Provider_Payment` | `HCBS Payment`, `Capitation Payment` |
+| `PL_Manage_Reference_Information` | `Designate Approved Services and Drug Formulary` |
+| `EE_Determine_Member_Eligibility` | `Full Eligibility Determination or Renewal`, `Alternate Scenario 1 - Auto Eligible` |
+
+The numbering restarts themselves were **not** touched — they are faithful. 9 of
+76 BPT records contain more than one scenario; `FM_Manage_Fund` has four.
+
+**The first attempt at this was wrong, and a review caught it.** For 5 of the 11
+headings the extraction had not dropped the label at all — it had *absorbed* it
+into the tail of the preceding step. Adding the heading as a new entry without
+removing the absorbed copy left the step body disagreeing with the source and the
+label present twice:
+
+| Record | Step ended | Source ends |
+|---|---|---|
+| `FM_Manage_Fund` step 11 | `...over allocations. Manage FMAP` | `over allocations.` |
+| `FM_Manage_Fund` FMAP step 6 | `...approved rates. Manage FFP` | `approved rates.` |
+| `FM_Manage_Fund` FFP step 8 | `...Send Outbound Transaction. Draw and Report FFP` | `Send Outbound Transaction.` |
+| `OM_Prepare_Provider_Payment` step 5 | `...information to member. Capitation Payment` | `to member.` |
+| `PL_Manage_Reference_Information` step 7 | `...addition or modification. Designate Approved Services and Drug Formulary` | `modification.` |
+
+All five absorbed copies were stripped and each step tail re-verified against the
+source. This is the same defect class D19 fixed inside the EE record; diagnosing
+it as "the label is missing" is what hid it, because once that is the diagnosis,
+adding the label looks like the whole fix. `check_step_structure()` now detects
+it directly.
+
+## D21 — invented heading decoration (3 headings, 2 records)
+
+The inverse defect: text the extraction added that CMS never wrote.
+`--- Alternate Path: Suspended Claim ---` and two others carried `---` wrappers,
+and `FM_Manage_1099` had gained a colon the source does not use. Normalised to
+the exact source labels (`Alternate Path - Additional Requests`,
+`Alternate Path - Corrections`, `Alternate Path: Suspended Claim`,
+`Alternate Path: Third Party Liability Failures`, `Alternate Path: Suspended
+Encounter`).
+
+## D22 — dropped word
+
+`EE_Disenroll_Provider_BPT` step 9 ended at `...with disenrollment`; the source
+continues `information.` after a page break. Same class as D12.
+
+## D23 — reference tables absent from the schema
+
+`EE_Determine_Member_Eligibility_BPT` steps cite seven numbered tables. Tables 1,
+2 and 4 had been dropped entirely and 3, 5, 6 and 7 had leaked into step text, so
+the capture was inconsistent either way.
+
+Added `process_details.reference_tables` — 7 tables, 57 rows of
+`{authority, eligibility_group}`, shaped after the existing `diagrams` field and
+optional, since this is the only record in the corpus whose source pages carry
+numbered tables (0 of 76 BCM, 1 of 76 BPT).
+
+**Why add a field for one record rather than drop the tables.** Dropping them
+would leave step 11 citing "Table 4, ... Table 5 and ... Table 6" while the
+dataset contained no such tables — a dangling reference that, unlike the 130
+unresolvable predecessor references, would be *ours* rather than CMS's. All 57
+rows and 7 titles were verified verbatim against the source before writing.
+
+## X6 — structural checks in the validator
+
+The fidelity layer passed every defect above, because it asks whether text
+appears somewhere in the cited page range — and leaked table rows, figure labels
+and section headings all do. The defect was that they sat in the wrong field,
+which is a structural question. `check_step_structure()` now rejects:
+
+- an entry opening with a number above 60 (a citation split at its period)
+- step numbers that neither continue the sequence nor restart at 1
+- a restart at 1 with no preceding scenario heading
+- `Table N:` content or figure-legend fragments inside a step
+
+- a scenario heading that is also still absorbed into the tail of the step above
+- a scenario-heading count other than the expected 20, in either direction
+
+`FM_Manage_Estate_Recovery_BPT` is held as an explicit `STEP_START_EXCEPTIONS`
+entry, being the only record that legitimately does not begin at step 1. It is
+keyed by `process_id` rather than filename, so a version bump cannot silently drop
+the exemption.
+
+`reference_tables` is validated for shape, `table_number` ordering,
+`page_reference` within the record's page range, and that every table a step cites
+exists — that last check runs whether or not the record has the field, since the
+state it guards against is a record that cites a table and carries none.
+
+The table cells are also under fidelity attestation, and separately under a
+**pairing** check. Attestation alone cannot catch a swapped `authority` and
+`eligibility_group`, because both strings still occur in the source. The pairing
+check uses reading order instead: in the PDF a row's left cell is followed
+immediately by its right cell, so `"<authority> <eligibility_group>"` is
+contiguous in the extracted text for a correct row and is not for a swapped one.
+Verified contiguous for all 57 rows.
+
+Each check was confirmed to fire by injecting the corresponding defect into a
+scratch copy of the dataset — a green run alone does not demonstrate that a check
+works. The pairing check was validated against a deliberate Aged/Disabled swap and
+a rotated citation, both of which the fidelity layer passed.
+
+**What this still does not catch.** A title truncated to a prefix of the real one
+passes both attestation and pairing, since every token is present and no pairing
+is disturbed. Titles are few and short, so this is a documented limit rather than
+an open defect.
+
+## Round 2 status
+
+| Item | Status |
+|---|---|
+| D19 EE_Determine step array (21 → 18 entries) | done — all entries word-attested against source; 3,126 characters restored |
+| D20 dropped scenario headings (11 headings, 6 records) | done — all verbatim in source; 5 absorbed copies also stripped after review |
+| D21 invented `---` decoration (2 records) | done |
+| D22 dropped word in EE_Disenroll_Provider | done |
+| D23 `reference_tables` (7 tables, 57 rows) | done — every cell attested and pairing-checked |
+| X6 structural validator checks | done — each check proven to fire |
+| Review round | 5 independent reviews; 2 blocking findings (absorbed headings, bisect order) and 5 lesser ones, all addressed |
+| CMS defects documented rather than corrected | done — [SOURCE_DEFECTS.md](SOURCE_DEFECTS.md) |
+| Full re-validation | done — 0 errors, 57 warnings (unchanged baseline) |
+| Regression | done — 152 files, 0 unpaired, 76 capabilities, archive validator exit 0, no format drift |

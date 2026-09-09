@@ -213,6 +213,7 @@ See [docs/DATA_STRUCTURE.md](docs/DATA_STRUCTURE.md) for complete schema documen
 - **[Conversion Methodology](docs/CONVERSION_METHODOLOGY.md)** - How PDFs were converted, and the transcription decisions behind it
 - **[Usage Examples](docs/EXAMPLES.md)** - Common queries and usage patterns
 - **[Tools](tools/README.md)** - Validation and inspection utilities
+- **[Source Defects](docs/SOURCE_DEFECTS.md)** - Errors in the CMS PDFs that this dataset reproduces on purpose
 - **[Remediation Plan](docs/REMEDIATION_PLAN.md)** - Defects found against the source PDFs and how each was repaired
 - **[2014 Migration Project](docs/archived-old-docs/2014_MIGRATION_PROJECT.md)** - Historical record of the 2012→2014 migration
 - **[Source PDFs](source-pdfs/)** - Original CMS MITA PDF documents
@@ -281,7 +282,10 @@ See [tools/README.md](tools/README.md) for what each check does.
 - **Total Files**: 152 (76 BCM + 76 BPT)
 - **BCM Questions**: 837 capability questions
 - **BCM Maturity Levels**: 4,185 level descriptions
-- **BPT Process Steps**: 826 documented steps
+- **BPT Process Steps**: 832 entries — 812 numbered steps plus 20 scenario
+  headings transcribed from the source, which share the `process_steps` array
+- **BPT Reference Tables**: 7 tables (57 rows), on the one record whose source
+  carries them
 - **Business Areas**: 9 complete domains
 
 ## Contributing
@@ -331,6 +335,58 @@ Everything in this repository — the dataset, the tooling, and the documentatio
 - For the avoidance of doubt, "the Software" in the MIT License includes the JSON dataset, not just the code.
 
 ## Changelog
+
+### Version 2.2.0 (September 2026)
+
+Extraction-defect release. Every change here moves the data *toward* the source
+PDFs. Where the source itself is wrong, the error is now reproduced deliberately
+and recorded in [docs/SOURCE_DEFECTS.md](docs/SOURCE_DEFECTS.md) rather than
+carried as an open bug.
+
+**`EE_Determine_Member_Eligibility_BPT` was substantially misextracted.** Only 5
+of its 21 step entries were clean. Repaired:
+
+- **Six truncated steps restored** (2, 4, 7, 8, 11, 14). Steps 7 and 8 were each
+  missing sub-items entirely, and step 11 was missing all of sub-item `h` — which
+  step 11e tells the reader to go to. 2,725 characters of published text had been
+  dropped at page boundaries.
+- **Five spurious entries removed.** A citation split at its period
+  (`42 CFR 435.` / `330 Aged`) had been read as "step 435", turning table rows
+  into steps.
+- **Table and figure text stripped** out of steps 5, 9 and the alternate-scenario
+  step, and four section headings removed from the tails of steps 3, 10 and 13.
+
+**New optional field `process_details.reference_tables`.** The seven numbered
+eligibility-group tables that steps cite ("See Mandatory MAGI Groups Table 1")
+are now captured as structured rows — 57 rows with their statutory citations.
+Present on this one record only, since it is the only one in the corpus whose
+source pages carry numbered tables. Additive: consumers that ignore it are
+unaffected.
+
+**Eleven scenario headings restored across six records.** Where a process defines
+more than one scenario, the source labels each one and the extraction had dropped
+the labels, leaving step numbering that restarted at 1 for no visible reason.
+`Capitation Payment`, `Manage FMAP`, `Designate Approved Services and Drug
+Formulary` and others are now present, verbatim. Conversely, `--- ... ---`
+decoration that the extraction had *invented* around three headings was removed.
+
+**One dropped word restored:** `EE_Disenroll_Provider_BPT` step 9 lost
+`information.` across a page break.
+
+**Validator gained structural checks**, because the fidelity layer cannot catch
+any of the above — leaked table rows and figure labels *do* appear in the cited
+page range, so text-presence checking passes them. It now rejects implausible
+step numbers, non-sequential numbering, unlabelled scenario restarts, and table
+or figure text inside a step, and validates `reference_tables` including that
+every table a step cites exists.
+
+**Breaking for consumers that index `process_steps` positionally.** Entries were
+inserted or removed mid-array in nine records, so a stored index now points at a
+different step. Step *numbers* were not renumbered and are unaffected. The nine:
+`EE_Determine_Member_Eligibility` (21 entries to 18), `FM_Manage_Fund`,
+`FM_Manage_1099`, `OM_Prepare_Provider_Payment`, `PL_Manage_Reference_Information`,
+`CM_Manage_Registry`, `OM_Process_Claim`, `OM_Process_Encounter`,
+`EE_Disenroll_Provider`. Step-entry count moved from 826 to 832.
 
 ### Version 2.1.1 (September 2026)
 
